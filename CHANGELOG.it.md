@@ -22,6 +22,17 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
   strumento del catalogo (un modulo dal suo JSON Schema, conferma per
   quelli che agiscono) e l'editor delle manopole (`nav.knobs`, Apply =
   `nav.restart`).
+- **La telecamera** (adattatore `mediad`): una piccola finestra sopra la
+  mappa con la telecamera sulla testa dell'anatra — in qualunque angolo,
+  richiudibile, a schermo intero (con un ripiego dove manca lo schermo
+  intero per gli elementi, come sull'iPhone), fotogrammi al secondo ed
+  età, "camera unavailable" e perché. Interrogata solo con la finestra
+  aperta e la pagina visibile. `GET /api/<servizio>/snapshot` serve un
+  JPEG dritto (al più 640 px) dal `media.frame` di mediad
+  (`/run/mediad/media.sock`), una lettura alla volta e al più cinque al
+  secondo per tutte le pagine insieme. Sul gemello risponde alla stessa
+  chiamata il viewer di quack-nav su `$STATE/media.sock`. Nel config di
+  default.
 - **quacksat**: un segnaposto che dice di non essere disponibile, e che
   cosa quacksat dovrebbe esporre.
 - La vista Services; una unit systemd (utente `quackctl` in `robot`),

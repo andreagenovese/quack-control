@@ -11,6 +11,7 @@ use serde_json::Value;
 
 use crate::config::ServiceConfig;
 
+pub mod mediad;
 pub mod quack_nav;
 pub mod quacksat;
 
@@ -20,6 +21,8 @@ pub enum Reply {
     Json(u16, Value),
     /// A page.
     Html(&'static str),
+    /// Bytes of a type (a camera frame), with headers of its own.
+    Bytes { status: u16, content_type: &'static str, headers: Vec<(&'static str, String)>, body: Arc<Vec<u8>> },
     /// Server-sent events: what is known now, then what follows.
     Events(Vec<quack_nav::hub::Item>, std::sync::mpsc::Receiver<quack_nav::hub::Item>),
 }
@@ -52,8 +55,9 @@ pub fn build(services: &[ServiceConfig]) -> anyhow::Result<Vec<Arc<dyn Adapter>>
         .map(|s| -> anyhow::Result<Arc<dyn Adapter>> {
             match s.kind.as_str() {
                 "quack-nav" => Ok(Arc::new(quack_nav::QuackNav::new(s))),
+                "mediad" => Ok(Arc::new(mediad::Mediad::new(s))),
                 "quacksat" => Ok(Arc::new(quacksat::Quacksat::new(s))),
-                other => anyhow::bail!("service `{}`: no adapter for kind `{other}` (quack-nav, quacksat)", s.name),
+                other => anyhow::bail!("service `{}`: no adapter for kind `{other}` (quack-nav, mediad, quacksat)", s.name),
             }
         })
         .collect()
@@ -65,9 +69,9 @@ mod tests {
 
     #[test]
     fn each_kind_has_its_adapter_and_typos_are_refused() {
-        let services = [ServiceConfig::new("nav", "quack-nav"), ServiceConfig::new("sat", "quacksat")];
+        let services = [ServiceConfig::new("nav", "quack-nav"), ServiceConfig::new("cam", "mediad"), ServiceConfig::new("sat", "quacksat")];
         let adapters = build(&services).unwrap();
-        assert_eq!(adapters.iter().map(|a| a.kind()).collect::<Vec<_>>(), ["quack-nav", "quacksat"]);
+        assert_eq!(adapters.iter().map(|a| a.kind()).collect::<Vec<_>>(), ["quack-nav", "mediad", "quacksat"]);
         assert_eq!(adapters[0].name(), "nav");
         let e = build(&[ServiceConfig::new("x", "quack-navd")]).err().unwrap().to_string();
         assert!(e.contains("no adapter"), "{e}");

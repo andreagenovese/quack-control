@@ -6,3 +6,7 @@ Pollen Robotics Microduck. It is not affiliated with, endorsed by, or
 supported by Pollen Robotics or Hugging Face.
 
 Licensed under the Apache License, Version 2.0.
+
+The camera's JPEG encoding uses the jpeg-encoder crate (MIT OR Apache-2.0,
+and IJG): this software is based in part on the work of the Independent
+JPEG Group.

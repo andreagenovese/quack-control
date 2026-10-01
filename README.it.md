@@ -32,7 +32,17 @@ ora in sola lettura), non ancora su un'anatra.
   lavoro (esplora, va da qualche parte, com'è finito), quanta casa è
   mappata e in quante sessioni, il suggerimento del demone; un quack-navd
   che rifiuta dice perché, uno irraggiungibile lo dice, e la pagina si
-  riconnette da sola.
+  riconnette da sola;
+- **la telecamera**: una piccola finestra sopra la mappa (il pulsante
+  della telecamera, in alto a destra), con quello che vede la telecamera
+  sulla testa dell'anatra — si trascina per il titolo in qualunque angolo,
+  si chiude, va a **schermo intero** (quello del browser dove c'è;
+  sull'iPhone, il cui Safari lo ha solo per i video, la finestra copre la
+  pagina). Mostra i fotogrammi al secondo e quanto è vecchio il
+  fotogramma, oppure "camera unavailable" e perché; aperta/chiusa e
+  l'angolo restano nel browser. I fotogrammi si chiedono solo mentre la
+  finestra è aperta, la vista mappa mostrata e la pagina visibile —
+  altrimenti nessuno.
 
 **Services**: ogni demone gestito e se risponde. quacksat risulta non
 disponibile: non ha ancora un socket di controllo ([docs/todo.it.md](docs/todo.it.md)).
@@ -71,6 +81,11 @@ nav_socket = "/run/quack-nav/nav.sock"
 map_socket = "/run/quack-nav/map.sock"
 
 [[service]]
+name = "camera"
+kind = "mediad"
+media_socket = "/run/mediad/media.sock"
+
+[[service]]
 name = "quacksat"
 kind = "quacksat"
 ```
@@ -91,6 +106,11 @@ name = "quack-nav"
 kind = "quack-nav"
 nav_socket = "/tmp/quack-twin/nav.sock"
 map_socket = "/tmp/quack-twin/map.sock"
+
+[[service]]
+name = "camera"
+kind = "mediad"
+media_socket = "/tmp/quack-twin/media.sock"
 ```
 
 ```sh
@@ -100,6 +120,12 @@ open http://127.0.0.1:8080/
 curl -N http://127.0.0.1:8080/api/quack-nav/events
 curl http://127.0.0.1:8080/api/services
 ```
+
+La telecamera sul gemello: mediad non c'è, quindi il viewer del gemello
+di quack-nav (`scripts/twin/viewer/eye.py`, `VIEWER=on`) renderizza in
+MuJoCo la telecamera sulla testa dell'anatra e risponde alla chiamata di
+mediad su `$STATE/media.sock` — lo stesso adattatore per il gemello e per
+l'anatra. Con `VIEWER=off`, niente telecamera.
 
 Le manopole sul gemello: quack-navd scrive `$STATE/knobs.env`, e Apply
 risponde che non è sotto systemd — `scripts/twin/twin.sh restart-navd` in
@@ -133,6 +159,32 @@ internet; l'accesso remoto è previsto invece sul canale di Pollen
   (è ciò che chiedono i socket di quack-navd), senza privilegi e recintato
   (`systemd/quack-control.service`).
 
+## La telecamera
+
+L'adattatore `mediad` (`src/adapters/mediad.rs`) legge il `mediad` di
+Pollen (microduck, daemon-v0.14.4 e daemon-v0.15.0): `media.frame` sul suo
+socket locale `/run/mediad/media.sock` (0660, gruppo `robot`, di cui
+`quackctl` fa parte). Una riga JSON-RPC chiede; una riga risponde con
+un'intestazione (larghezza, altezza, `UYVY`, byte, istante di cattura,
+`rotate`) e subito dopo arriva il fotogramma grezzo — 1280x720, 1,84 MB al
+gradino di default. mediad copia un fotogramma solo quando glielo si
+chiede e risponde con la cattura successiva (al più 500 ms).
+
+`GET /api/<servizio>/snapshot` risponde `image/jpeg` (protetto dal token
+come ogni chiamata): il fotogramma raddrizzato (`rotate`, 90 su ogni
+anatra e sul gemello), ridotto ad al più 640 px sul lato lungo, JPEG
+qualità 70 — 360x640, 5–40 kB — con `X-Frame-Age-Ms`,
+`X-Frame-Captured-Us` e `X-Frame-Size`. **Una lettura alla volta, al più
+cinque al secondo per tutte le pagine insieme**: un fotogramma più giovane
+di 200 ms si serve dalla memoria, e un errore risponde per sé (503) per un
+secondo prima di richiedere alla telecamera. Il video (WebRTC, il flusso
+di mediad) è per dopo ([docs/todo.it.md](docs/todo.it.md)).
+
+**Porta 8080**: anche la console di mediad ascolta su `0.0.0.0:8080`
+(`--web-port`, daemon-v0.15.0). Su un'anatra dove gira mediad, dare a
+quack-control un altro `bind` (per esempio `0.0.0.0:8090`), altrimenti il
+secondo che parte non riesce ad ascoltare.
+
 ## Installarlo sull'anatra
 
 Dopo quack-nav (quack-navd e il gruppo `robot`):
@@ -144,7 +196,7 @@ scripts/install-on-duck.sh microduck@192.168.1.42   # binario, unit, account, co
 
 | sull'anatra | da questo repo |
 |---|---|
-| `/usr/local/bin/quack-control` | il binario cross-compilato (1,5 MB) |
+| `/usr/local/bin/quack-control` | il binario cross-compilato (1,7 MB) |
 | `/etc/systemd/system/quack-control.service` | `systemd/quack-control.service` |
 | `/etc/sysusers.d/quack-control.conf` (utente `quackctl`) | `systemd/sysusers.d/quack-control.conf` |
 | `/etc/robot/quack-control.toml` | `quack-control.example.toml`, solo se manca |
@@ -159,7 +211,8 @@ il binario, l'unit e il file sysusers.
 Un binario, thread std, niente runtime async e niente crate HTTP: qualche
 centinaio di righe di HTTP/1.1 (`src/http.rs`), un thread per
 connessione, server-sent events per i dati dal vivo e `POST` JSON per i
-comandi. Dipendenze: serde, serde_json, toml, tracing, anyhow. La pagina è
+comandi. Dipendenze: serde, serde_json, toml, tracing, anyhow, jpeg-encoder (Rust
+puro, per i fotogrammi della telecamera). La pagina è
 un file HTML con JavaScript semplice e un canvas, incluso nel binario —
 nessuna build, niente caricato dalla rete, funziona offline.
 
@@ -168,6 +221,7 @@ nessuna build, niente caricato dalla rete, funziona offline.
 | `src/server.rs` | le rotte, il token, la regola solo-JSON, i flussi di eventi |
 | `src/adapters/mod.rs` | il trait `Adapter` e i tipi |
 | `src/adapters/quack_nav/` | quack-navd: il flusso della mappa e l'interrogazione dello stato (`hub.rs`), i controlli su ogni chiamata (`bridge.rs`) |
+| `src/adapters/mediad.rs` | la telecamera: `media.frame`, la cache condivisa, UYVY → JPEG dritto |
 | `src/adapters/quacksat.rs` | un segnaposto, e che cosa quacksat dovrebbe esporre |
 | `src/page.html` | la pagina |
 
@@ -179,7 +233,7 @@ strada verso il canale di Pollen:
 [docs/adr/0001-a-control-plane-of-its-own.it.md](docs/adr/0001-a-control-plane-of-its-own.it.md).
 
 ```sh
-cargo test --release      # 32 test: HTTP, token, rotte, ogni controllo sulle chiamate
+cargo test --release      # 39 test: HTTP, token, rotte, ogni controllo sulle chiamate, la telecamera
 ```
 
 ## Licenza

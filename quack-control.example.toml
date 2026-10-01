@@ -1,6 +1,6 @@
 # quack-control's config, installed to /etc/robot/quack-control.toml (the
 # path the unit, systemd/quack-control.service, passes). Every key left out
-# takes its default (src/config.rs); with no file at all, both services
+# takes its default (src/config.rs); with no file at all, the services
 # below are managed at these paths.
 # scripts/install-on-duck.sh installs this file only when none is there.
 
@@ -18,6 +18,13 @@ name = "quack-nav"
 kind = "quack-nav"
 nav_socket = "/run/quack-nav/nav.sock"
 map_socket = "/run/quack-nav/map.sock"
+
+# The duck's head camera: mediad's local frame socket (Pollen's mediad,
+# group `robot`). The page's camera window shows it.
+[[service]]
+name = "camera"
+kind = "mediad"
+media_socket = "/run/mediad/media.sock"
 
 [[service]]
 name = "quacksat"

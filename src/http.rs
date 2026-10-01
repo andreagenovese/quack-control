@@ -177,13 +177,30 @@ pub fn reason(status: u16) -> &'static str {
 
 /// Write a whole response and close: `Connection: close` always.
 pub fn respond(out: &mut impl Write, status: u16, content_type: &str, body: &[u8]) -> std::io::Result<()> {
-    write!(
-        out,
+    respond_with(out, status, content_type, &[], body)
+}
+
+/// [`respond`], with headers of the caller's (names and values it controls:
+/// no line breaks).
+pub fn respond_with(
+    out: &mut impl Write,
+    status: u16,
+    content_type: &str,
+    headers: &[(&str, String)],
+    body: &[u8],
+) -> std::io::Result<()> {
+    let mut head = format!(
         "HTTP/1.1 {status} {}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\n\
-         Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",
+         Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n",
         reason(status),
         body.len()
-    )?;
+    );
+    for (name, value) in headers {
+        debug_assert!(!name.contains(['\r', '\n']) && !value.contains(['\r', '\n']));
+        head.push_str(&format!("{name}: {value}\r\n"));
+    }
+    head.push_str("\r\n");
+    out.write_all(head.as_bytes())?;
     out.write_all(body)?;
     out.flush()
 }
@@ -284,5 +301,11 @@ mod tests {
         assert!(text.contains("Connection: close\r\n"));
         assert!(text.ends_with("\r\n\r\nnope"));
         assert_eq!(event("pose", "{\"x\":1}"), "event: pose\ndata: {\"x\":1}\n\n");
+        let mut out = Vec::new();
+        respond_with(&mut out, 200, "image/jpeg", &[("X-Frame-Age-Ms", "12".into())], &[0xFF, 0xD8]).unwrap();
+        let head = String::from_utf8_lossy(&out[..out.len() - 2]).into_owned();
+        assert!(head.contains("Content-Type: image/jpeg\r\n") && head.contains("Content-Length: 2\r\n"), "{head}");
+        assert!(head.ends_with("X-Frame-Age-Ms: 12\r\n\r\n"), "{head}");
+        assert_eq!(&out[out.len() - 2..], &[0xFF, 0xD8]);
     }
 }

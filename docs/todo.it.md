@@ -49,4 +49,18 @@ Inglese: [todo.md](todo.md).
 - [ ] Provare sul gemello le chiamate interattive (go here, stop,
       esplorazione, teach, le manopole e Apply con `twin.sh restart-navd`);
       contro il gemello sono girate solo le letture (2026-10-01).
+- [ ] 2026-10-01: video della telecamera — WebRTC da mediad (il suo
+      flusso `webrtcsink`, H.264, e il signalling su 8443) invece degli
+      snapshot JPEG interrogati: video fluido con una frazione della CPU,
+      ma un client WebRTC nella pagina e una strada attraverso il
+      signalling di mediad (e il suo modello senza autenticazione) da
+      decidere; gli snapshot restano come ripiego.
+- [ ] 2026-10-01: la porta 8080 è anche della console di mediad
+      (`--web-port` di daemon-v0.15.0): scegliere per sempre la porta di
+      quack-control sull'anatra (config d'esempio, script d'installazione,
+      documentazione).
+- [ ] Provare la finestra della telecamera su un telefono vero (il
+      ripiego a sovrapposizione di Safari su iPhone, lo schermo intero di
+      Chrome su Android) e sull'anatra (il costo di un fotogramma
+      1280x720 → JPEG sul RK3566).
 - [ ] Un test a screenshot nella CI (Chrome headless contro un quack-navd finto).

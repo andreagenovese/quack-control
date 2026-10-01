@@ -80,6 +80,29 @@ table.knobs td, table.knobs th { border-bottom: 1px solid var(--line); padding: 
 table.knobs td.doc { color: var(--muted); max-width: 360px; }
 table.knobs input, table.knobs select { width: 110px; }
 .changed { color: var(--warn); font-weight: 600; }
+/* The camera: a small window over the map, any corner, full screen on demand. */
+#cam { position: absolute; z-index: 4; width: clamp(130px, 24vw, 240px); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,.25); overflow: hidden; display: none; }
+#cam.on { display: block; }
+#cam.c-br { right: 10px; bottom: 12px; } #cam.c-bl { left: 10px; bottom: 70px; }
+#cam.c-tr { right: 60px; top: 10px; } #cam.c-tl { left: 10px; top: 44px; }
+#camhead { display: flex; align-items: center; gap: 5px; padding: 3px 4px 3px 7px; font-size: 11px; color: var(--muted);
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+#camhead span#caminfo { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#camhead button { border: none; background: none; padding: 2px 6px; font-size: 14px; line-height: 1; }
+#cambody { position: relative; background: #000; }
+#camimg { display: block; width: 100%; aspect-ratio: 9 / 16; max-height: 46vh; object-fit: contain; }
+#cammsg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center;
+  padding: 10px; color: #ddd; font-size: 12px; }
+#cam.max { position: fixed; inset: 0; width: auto; border-radius: 0; border: none; z-index: 50; background: #000;
+  display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+#cam.max #camhead { background: #000; color: #ccc; cursor: default; font-size: 13px; padding: 6px 8px; }
+#cam.max #camhead button { color: #fff; font-size: 18px; }
+#cam.max #cambody { flex: 1; min-height: 0; }
+#cam.max #camimg { width: 100%; height: 100%; max-height: none; aspect-ratio: auto; }
+#cam:fullscreen { width: 100%; height: 100%; }
+#camopen svg { width: 20px; height: 20px; vertical-align: middle; }
+#camopen { display: none; }
 @media (max-width: 760px) {
   main { flex-direction: column; height: auto; }
   section.view.on { flex-direction: column; }
@@ -115,6 +138,13 @@ table.knobs input, table.knobs select { width: 110px; }
     <div class="mapbtns">
       <button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button>
       <button id="fit" title="Fit the map">⤢</button><button id="follow" title="Follow the duck">◎</button>
+      <button id="camopen" title="The duck's camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linejoin="round"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+    </div>
+    <div id="cam" class="c-br">
+      <div id="camhead"><span class="dot wait" id="camdot"></span><span id="caminfo">camera</span>
+        <button id="camfull" title="Full screen">⛶</button><button id="camclose" title="Hide the camera">✕</button></div>
+      <div id="cambody"><img id="camimg" alt="what the duck sees"><div id="cammsg"></div></div>
     </div>
     <button id="stop" class="danger" title="Stop whatever the duck is doing (go_to or exploring)">STOP</button>
   </div>
@@ -261,6 +291,7 @@ document.querySelectorAll("nav.tabs button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("nav.tabs button").forEach((o) => o.classList.toggle("on", o === b));
   document.querySelectorAll("section.view").forEach((v) => v.classList.toggle("on", v.id === b.dataset.tab));
   if (b.dataset.tab === "mapview") resize();
+  camKick();
   if (b.dataset.tab === "services") loadServices();
 });
 
@@ -281,6 +312,116 @@ function connect() {
   es.addEventListener("status", (e) => { const j = JSON.parse(e.data); S.status = j.ok ? j.status : null; S.statusError = j.ok ? null : j.error; showStatus(); draw(); });
   es.addEventListener("places", (e) => { const j = JSON.parse(e.data); S.places = j.ok ? (j.places.places || []) : []; showPlaces(j.ok ? null : j.error); draw(); });
 }
+
+// ---- the camera ----
+// Polled only while its window is open and the page is visible: a frame
+// every CAM_PERIOD at most (quack-control caps the camera at 5 a second
+// for every page together), none at all when closed.
+const CAM_PERIOD = 250, CAM_RETRY = 2000;
+const cam = { svc: null, open: false, corner: "br", loop: 0, url: null, times: [], age: null, got: 0, error: null };
+try { const saved = JSON.parse(store("qc-cam") || "{}"); cam.open = !!saved.open; if (["br", "bl", "tr", "tl"].includes(saved.corner)) cam.corner = saved.corner; } catch (e) {}
+function camSave() { store("qc-cam", JSON.stringify({ open: cam.open, corner: cam.corner })); }
+function camMax() { return $("cam").classList.contains("max") || document.fullscreenElement === $("cam") || document.webkitFullscreenElement === $("cam"); }
+function camWanted() {
+  return cam.svc && cam.open && document.visibilityState === "visible" && ($("mapview").classList.contains("on") || camMax());
+}
+function camShow() {
+  const w = $("cam");
+  w.className = "c-" + cam.corner + (cam.open && cam.svc ? " on" : "") + (w.classList.contains("max") ? " max" : "");
+  $("camopen").style.display = cam.svc ? "" : "none";
+  $("camopen").classList.toggle("on", cam.open);
+}
+function camKick() {
+  camShow();
+  const id = ++cam.loop;           // one loop at a time: a newer one ends the older
+  if (camWanted()) camTick(id);
+}
+async function camTick(id) {
+  if (id !== cam.loop || !camWanted()) return;
+  const started = performance.now();
+  let wait = CAM_PERIOD;
+  try {
+    const r = await fetch("/api/" + cam.svc + "/snapshot", { headers: token ? { "X-Token": token } : {}, cache: "no-store" });
+    if (r.status === 401) { askToken(); throw new Error("needs the token"); }
+    if (!r.ok) { let j = {}; try { j = await r.json(); } catch (e) {} throw new Error(j.error || "HTTP " + r.status); }
+    const blob = await r.blob();
+    if (id !== cam.loop) return;
+    const url = URL.createObjectURL(blob), img = $("camimg"), old = cam.url;
+    img.onload = () => { if (old) URL.revokeObjectURL(old); if (img.naturalWidth) img.style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight; };
+    img.src = url; cam.url = url;
+    cam.age = +(r.headers.get("X-Frame-Age-Ms") || 0); cam.got = performance.now(); cam.error = null;
+    cam.times.push(cam.got); while (cam.times.length > 1 && cam.got - cam.times[0] > 3000) cam.times.shift();
+  } catch (e) {
+    cam.error = e.message; wait = CAM_RETRY;
+  }
+  camInfo();
+  if (id === cam.loop) setTimeout(() => camTick(id), Math.max(0, wait - (performance.now() - started)));
+}
+function camInfo() {
+  const msg = $("cammsg");
+  if (cam.error) {
+    $("camdot").className = "dot bad"; $("caminfo").textContent = "camera unavailable";
+    msg.textContent = "Camera unavailable — " + cam.error; msg.style.display = "flex"; return;
+  }
+  msg.style.display = "none";
+  const n = cam.times.length, fps = n > 1 ? (n - 1) * 1000 / (cam.times[n - 1] - cam.times[0]) : 0;
+  const age = ((cam.age || 0) + performance.now() - cam.got) / 1000;
+  $("camdot").className = "dot " + (age < 2 ? "ok" : "wait");
+  $("caminfo").textContent = fps.toFixed(1) + " fps · " + age.toFixed(1) + " s old";
+}
+$("camopen").onclick = () => { cam.open = !cam.open; camSave(); camKick(); };
+$("camclose").onclick = () => { if (camMax()) camFull(false); cam.open = false; camSave(); camKick(); };
+// Element full screen where the browser has it; elsewhere (the iPhone's
+// Safari has it for video only) the window covers the viewport instead.
+function camFull(on) {
+  const w = $("cam");
+  if (!on) {
+    w.classList.remove("max");
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } else {
+    w.classList.add("max");
+    if (w.requestFullscreen && document.fullscreenEnabled) w.requestFullscreen().catch(() => {});
+    else if (w.webkitRequestFullscreen && document.webkitFullscreenEnabled) w.webkitRequestFullscreen();
+  }
+  $("camfull").title = on ? "Leave full screen" : "Full screen";
+  camKick();
+}
+$("camfull").onclick = () => camFull(!camMax());
+const camFsChange = () => { if (!document.fullscreenElement && !document.webkitFullscreenElement && $("cam").classList.contains("max")) camFull(false); };
+document.addEventListener("fullscreenchange", camFsChange);
+document.addEventListener("webkitfullscreenchange", camFsChange);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("cam").classList.contains("max")) camFull(false); });
+document.addEventListener("visibilitychange", camKick);
+setInterval(() => { if (camWanted() && !cam.error) camInfo(); }, 500);
+// Drag the window by its title to any corner of the map.
+(() => {
+  const head = $("camhead"); let drag = null;
+  head.addEventListener("pointerdown", (e) => {
+    if (camMax() || e.target.closest("button")) return;
+    head.setPointerCapture(e.pointerId);
+    const r = $("cam").getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false };
+  });
+  head.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const w = $("cam"), box = $("mapwrap").getBoundingClientRect();
+    drag.moved = true;
+    w.style.left = (e.clientX - box.left - drag.dx) + "px"; w.style.top = (e.clientY - box.top - drag.dy) + "px";
+    w.style.right = w.style.bottom = "auto";
+  });
+  const drop = (e) => {
+    if (!drag) return;
+    const moved = drag.moved; drag = null;
+    if (!moved) return;
+    const w = $("cam"), box = $("mapwrap").getBoundingClientRect(), r = w.getBoundingClientRect();
+    const right = r.left + r.width / 2 > box.left + box.width / 2, bottom = r.top + r.height / 2 > box.top + box.height / 2;
+    cam.corner = (bottom ? "b" : "t") + (right ? "r" : "l");
+    w.style.left = w.style.top = w.style.right = w.style.bottom = "";
+    camSave(); camShow();
+  };
+  head.addEventListener("pointerup", drop); head.addEventListener("pointercancel", drop);
+})();
 
 function showLink() {
   const nav = S.link.nav || "", map = S.link.map || "";
@@ -538,6 +679,9 @@ async function loadServices() {
   const j = await api("services");
   const box = $("svclist"); box.replaceChildren();
   if (!j.ok) { box.textContent = j.error; return; }
+  // The camera window shows the first service that has a camera.
+  const camSvc = (j.services.find((s) => (s.features || []).includes("camera")) || {}).name || null;
+  if (camSvc !== cam.svc) { cam.svc = camSvc; camKick(); }
   for (const s of j.services) {
     // The map view drives the first quack-nav service, whatever its name.
     if (s.kind === "quack-nav" && svc !== s.name && !j.services.some((o) => o.name === svc)) { svc = s.name; connect(); }

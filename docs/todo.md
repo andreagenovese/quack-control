@@ -44,4 +44,15 @@ What the control plane carries next. The items deferred by the decision of
 - [ ] Test the interactive calls on the twin (go here, stop, explore,
       teach, the knobs and Apply with `twin.sh restart-navd`); only the
       reads have been run against it (2026-10-01).
+- [ ] 2026-10-01: camera video — WebRTC from mediad (its `webrtcsink`
+      stream, H.264, and the signalling on 8443) instead of polled JPEG
+      snapshots: smooth video at a fraction of the CPU, but a WebRTC
+      client in the page and a path through mediad's signalling (and its
+      no-auth model) to decide on; the snapshots stay as the fallback.
+- [ ] 2026-10-01: port 8080 is mediad's console's too (daemon-v0.15.0
+      `--web-port`): pick quack-control's port on the duck for good (the
+      example config, the install script, the docs).
+- [ ] Try the camera window on a real phone (iPhone Safari's overlay
+      fallback, Android Chrome's full screen) and on the duck (the cost of
+      a 1280x720 frame → JPEG on the RK3566).
 - [ ] A screenshot test in CI (headless Chrome against a fake quack-navd).

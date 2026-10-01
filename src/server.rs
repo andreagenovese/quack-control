@@ -76,6 +76,7 @@ impl Server {
         let _ = match self.handle(&request) {
             Reply::Json(status, body) => http::respond_json(&mut out, status, &body),
             Reply::Html(page) => http::respond(&mut out, 200, "text/html; charset=utf-8", page.as_bytes()),
+            Reply::Bytes { status, content_type, headers, body } => http::respond_with(&mut out, status, content_type, &headers, &body),
             Reply::Events(now, rx) => http::start_events(&mut out).and_then(|()| stream_events(&mut out, now, rx)),
         };
     }
@@ -206,6 +207,7 @@ mod tests {
             Reply::Json(s, v) => (s, v),
             Reply::Html(_) => (200, Value::Null),
             Reply::Events(..) => (200, json!("events")),
+            Reply::Bytes { status, content_type, .. } => (status, json!(content_type)),
         }
     }
 
@@ -246,6 +248,22 @@ mod tests {
         assert_eq!(status(s.handle(&request("GET /api/other/events HTTP/1.1\r\n\r\n"))).0, 404);
         assert_eq!(status(s.handle(&request("GET /elsewhere HTTP/1.1\r\n\r\n"))).0, 404);
         assert_eq!(status(s.handle(&request("GET /api/nav/a/b HTTP/1.1\r\n\r\n"))).1["path"], "a/b");
+    }
+
+    #[test]
+    fn the_camera_s_snapshot_is_a_jpeg_behind_the_token() {
+        use crate::adapters::mediad::tests::{adapter, fake_mediad};
+        let dir = tempfile::tempdir().unwrap();
+        let (socket, _) = fake_mediad(dir.path(), 64, 32, 90);
+        let s = Server { token: Some("s3cret".into()), adapters: vec![Arc::new(adapter(&socket))] };
+        assert_eq!(status(s.handle(&request("GET /api/camera/snapshot HTTP/1.1\r\n\r\n"))).0, 401);
+        let (code, kind) = status(s.handle(&request("GET /api/camera/snapshot?token=s3cret HTTP/1.1\r\n\r\n")));
+        assert_eq!((code, kind), (200, json!("image/jpeg")));
+        let (code, kind) = status(s.handle(&request("GET /api/camera/snapshot HTTP/1.1\r\nX-Token: s3cret\r\n\r\n")));
+        assert_eq!((code, kind), (200, json!("image/jpeg")));
+        let (_, services) = status(s.handle(&request("GET /api/services?token=s3cret HTTP/1.1\r\n\r\n")));
+        assert_eq!(services["services"][0]["features"], json!(["camera"]));
+        assert_eq!(services["services"][0]["available"], json!(true));
     }
 
     #[test]

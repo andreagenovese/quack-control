@@ -20,6 +20,15 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
   with every catalog tool (a form from its JSON Schema, confirmation for
   the ones that act) and the knobs editor (`nav.knobs`, Apply =
   `nav.restart`).
+- **The camera** (`mediad` adapter): a small window over the map with
+  the duck's head camera — any corner, collapsible, full screen (with a
+  fallback where element full screen is missing, as on the iPhone), frame
+  rate and age, "camera unavailable" and why. Polled only while the window
+  is open and the page visible. `GET /api/<service>/snapshot` serves an
+  upright JPEG (at most 640 px) from mediad's `media.frame`
+  (`/run/mediad/media.sock`), one fetch at a time and at most five a
+  second for all the pages together. On the twin, quack-nav's viewer
+  answers the same call on `$STATE/media.sock`. In the default config.
 - **quacksat**: a placeholder that says it is not available, and what
   quacksat would need to expose.
 - The Services view; a systemd unit (user `quackctl` in `robot`),
