@@ -31,7 +31,7 @@ CPUWeight=30
 MemoryHigh=48M
 MemoryMax=64M
 
-# Hardening as quack-navd's, with AF_INET/AF_INET6 for the page. Port 8080
+# Hardening as quack-navd's, with AF_INET/AF_INET6 for the page. Port 8090
 # needs no capability.
 NoNewPrivileges=yes
 ProtectSystem=strict

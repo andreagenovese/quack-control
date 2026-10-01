@@ -4,9 +4,9 @@
 # below are managed at these paths.
 # scripts/install-on-duck.sh installs this file only when none is there.
 
-# Every interface, port 8080: the page on the home network. Plain HTTP —
+# Every interface, port 8090: the page on the home network. Plain HTTP —
 # never forward this port to the internet.
-bind = "0.0.0.0:8080"
+bind = "0.0.0.0:8090"
 
 # A token every call and live stream must carry (the page asks for it once
 # and remembers it). Better kept out of this world-readable file: set

@@ -72,4 +72,4 @@ sudo systemctl --no-pager --lines=5 status quack-control || true
 rm -rf "$STAGE"
 REMOTE
 
-echo "installed on $HOST — the page: http://${HOST#*@}:8080/ (journal: ssh $HOST journalctl -u quack-control -f)"
+echo "installed on $HOST — the page: http://${HOST#*@}:8090/ (journal: ssh $HOST journalctl -u quack-control -f)"

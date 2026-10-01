@@ -49,9 +49,9 @@ What the control plane carries next. The items deferred by the decision of
       snapshots: smooth video at a fraction of the CPU, but a WebRTC
       client in the page and a path through mediad's signalling (and its
       no-auth model) to decide on; the snapshots stay as the fallback.
-- [ ] 2026-10-01: port 8080 is mediad's console's too (daemon-v0.15.0
-      `--web-port`): pick quack-control's port on the duck for good (the
-      example config, the install script, the docs).
+- [x] 2026-10-01: port 8080 is mediad's console's too (daemon-v0.15.0
+      `--web-port`): quack-control's default is 8090 now (the example
+      config, the install script, the docs).
 - [ ] Try the camera window on a real phone (iPhone Safari's overlay
       fallback, Android Chrome's full screen) and on the duck (the cost of
       a 1280x720 frame → JPEG on the RK3566).

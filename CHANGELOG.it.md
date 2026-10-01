@@ -12,7 +12,7 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
 
 - **Il piano di controllo locale** (ADR 0001, 2026-10-01): un binario,
   `quack-control`, che serve una pagina sulla rete di casa (default
-  `0.0.0.0:8080`, un token facoltativo, HTTP in chiaro solo per la LAN),
+  `0.0.0.0:8090`, non l'8080 della console di mediad; un token facoltativo, HTTP in chiaro solo per la LAN),
   con un adattatore per ogni demone gestito.
 - **quack-nav**: mappa, posa, incertezza, scia, rotta, meta, dislivelli e
   luoghi dal vivo; tocca per andare o per dare un nome a un punto, stop,

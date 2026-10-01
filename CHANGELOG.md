@@ -11,7 +11,7 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
 
 - **The local control plane** (ADR 0001, 2026-10-01): one binary,
   `quack-control`, serving one page on the home network (default
-  `0.0.0.0:8080`, an optional token, plain HTTP for the LAN only), with an
+  `0.0.0.0:8090`, not mediad's console's 8080; an optional token, plain HTTP for the LAN only), with an
   adapter per managed daemon.
 - **quack-nav**: the live map, pose, uncertainty, trail, route, goal,
   drops and places; tap to go or to name a point, stop, places, explore

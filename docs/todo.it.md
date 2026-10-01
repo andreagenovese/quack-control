@@ -55,10 +55,9 @@ Inglese: [todo.md](todo.md).
       ma un client WebRTC nella pagina e una strada attraverso il
       signalling di mediad (e il suo modello senza autenticazione) da
       decidere; gli snapshot restano come ripiego.
-- [ ] 2026-10-01: la porta 8080 è anche della console di mediad
-      (`--web-port` di daemon-v0.15.0): scegliere per sempre la porta di
-      quack-control sull'anatra (config d'esempio, script d'installazione,
-      documentazione).
+- [x] 2026-10-01: la porta 8080 è anche della console di mediad
+      (`--web-port` di daemon-v0.15.0): il default di quack-control ora è
+      8090 (config d'esempio, script d'installazione, documentazione).
 - [ ] Provare la finestra della telecamera su un telefono vero (il
       ripiego a sovrapposizione di Safari su iPhone, lo schermo intero di
       Chrome su Android) e sull'anatra (il costo di un fotogramma

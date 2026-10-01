@@ -71,7 +71,7 @@ target/release/quack-control /etc/robot/quack-control.toml
 `quack-control.example.toml`:
 
 ```toml
-bind = "0.0.0.0:8080"
+bind = "0.0.0.0:8090"
 # token = "una-stringa-lunga-e-casuale"   # meglio: QC_TOKEN nell'ambiente
 
 [[service]]
@@ -90,7 +90,7 @@ name = "quacksat"
 kind = "quacksat"
 ```
 
-Senza file: questi default. Poi si apre `http://<indirizzo dell'anatra>:8080/`.
+Senza file: questi default. Poi si apre `http://<indirizzo dell'anatra>:8090/`.
 
 ### Contro il gemello
 
@@ -99,7 +99,7 @@ directory `STATE` (`/tmp/quack-twin` di default). Un config che punta lì,
 solo su questa macchina:
 
 ```toml
-bind = "127.0.0.1:8080"
+bind = "127.0.0.1:8090"
 
 [[service]]
 name = "quack-nav"
@@ -115,10 +115,10 @@ media_socket = "/tmp/quack-twin/media.sock"
 
 ```sh
 target/release/quack-control twin.toml
-open http://127.0.0.1:8080/
+open http://127.0.0.1:8090/
 # senza browser: il flusso dal vivo, e i servizi
-curl -N http://127.0.0.1:8080/api/quack-nav/events
-curl http://127.0.0.1:8080/api/services
+curl -N http://127.0.0.1:8090/api/quack-nav/events
+curl http://127.0.0.1:8090/api/services
 ```
 
 La telecamera sul gemello: mediad non c'è, quindi il viewer del gemello
@@ -180,10 +180,10 @@ di 200 ms si serve dalla memoria, e un errore risponde per sé (503) per un
 secondo prima di richiedere alla telecamera. Il video (WebRTC, il flusso
 di mediad) è per dopo ([docs/todo.it.md](docs/todo.it.md)).
 
-**Porta 8080**: anche la console di mediad ascolta su `0.0.0.0:8080`
-(`--web-port`, daemon-v0.15.0). Su un'anatra dove gira mediad, dare a
-quack-control un altro `bind` (per esempio `0.0.0.0:8090`), altrimenti il
-secondo che parte non riesce ad ascoltare.
+**Porta 8090**: la console di mediad ascolta su `0.0.0.0:8090`
+(`--web-port`, daemon-v0.15.0), quindi il default di quack-control è 8090
+(dal 2026-10-01; era 8080, e il secondo che partiva non riusciva ad
+ascoltare).
 
 ## Installarlo sull'anatra
 

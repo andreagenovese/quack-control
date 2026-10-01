@@ -65,7 +65,7 @@ target/release/quack-control /etc/robot/quack-control.toml
 `quack-control.example.toml`:
 
 ```toml
-bind = "0.0.0.0:8080"
+bind = "0.0.0.0:8090"
 # token = "a-long-random-string"     # better: QC_TOKEN in the environment
 
 [[service]]
@@ -84,7 +84,7 @@ name = "quacksat"
 kind = "quacksat"
 ```
 
-No file: these defaults. Then open `http://<the duck's address>:8080/`.
+No file: these defaults. Then open `http://<the duck's address>:8090/`.
 
 ### Against the twin
 
@@ -93,7 +93,7 @@ directory (`/tmp/quack-twin` by default). A config that points there, on
 this machine only:
 
 ```toml
-bind = "127.0.0.1:8080"
+bind = "127.0.0.1:8090"
 
 [[service]]
 name = "quack-nav"
@@ -109,10 +109,10 @@ media_socket = "/tmp/quack-twin/media.sock"
 
 ```sh
 target/release/quack-control twin.toml
-open http://127.0.0.1:8080/
+open http://127.0.0.1:8090/
 # without a browser: the live stream, and the services
-curl -N http://127.0.0.1:8080/api/quack-nav/events
-curl http://127.0.0.1:8080/api/services
+curl -N http://127.0.0.1:8090/api/quack-nav/events
+curl http://127.0.0.1:8090/api/services
 ```
 
 The camera on the twin: there is no mediad, so quack-nav's twin viewer
@@ -170,10 +170,9 @@ failure answers for itself (503) for a second before the camera is asked
 again. Video (WebRTC, mediad's own stream) is for later
 ([docs/todo.md](docs/todo.md)).
 
-**Port 8080**: mediad's own console listens on `0.0.0.0:8080` too
-(`--web-port`, daemon-v0.15.0). On a duck where mediad runs, give
-quack-control another `bind` (e.g. `0.0.0.0:8090`), or the second to
-start cannot listen.
+**Port 8090**: mediad's own console listens on `0.0.0.0:8090`
+(`--web-port`, daemon-v0.15.0), so quack-control's default is 8090
+(since 2026-10-01; it was 8080, and the second to start could not listen).
 
 ## Installing on the duck
 

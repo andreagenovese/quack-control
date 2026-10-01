@@ -8,7 +8,7 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
-    /// Every interface, port 8080, by default: the home network.
+    /// Every interface, port 8090 (mediad's console has 8080), by default: the home network.
     pub bind: String,
     /// When set, every call and the live streams need it (the `X-Token`
     /// header, or `?token=`); the page itself loads without it.
@@ -69,7 +69,7 @@ impl Default for Config {
     /// quack-nav, the camera (mediad) and quacksat at their installed paths.
     fn default() -> Self {
         Self {
-            bind: "0.0.0.0:8080".into(),
+            bind: "0.0.0.0:8090".into(),
             token: None,
             services: vec![
                 ServiceConfig::new("quack-nav", "quack-nav"),
@@ -140,7 +140,7 @@ mod tests {
         let kinds: Vec<&str> = c.services.iter().map(|s| s.kind.as_str()).collect();
         assert_eq!(kinds, ["quack-nav", "mediad", "quacksat"]);
         assert_eq!(c.services[1].media_socket, "/run/mediad/media.sock");
-        assert_eq!(c.bind, "0.0.0.0:8080");
+        assert_eq!(c.bind, "0.0.0.0:8090");
     }
 
     #[test]
