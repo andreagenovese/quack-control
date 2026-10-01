@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>quack-control</title>
+<!-- One file, no build, nothing from the network: embedded in the binary
+     (include_str!) and served by quack-control on the home network.
+     Every text from the daemons goes in with textContent, never as HTML. -->
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #dddbd3;
+  --accent: #2463c9; --danger: #c62828; --ok: #2e7d32; --warn: #b26a00;
+  --unknown: #d9d7cf; --free: #fbfaf6; --wall: #2b2b2b;
+  --trail: #e0457b; --route: #1f9d3a; --route-raw: #9fd3a8; --goal: #0aa5a5; --aim: #d4b106;
+  --drop: #d32f2f; --obstacle: #ef8a17; --duck: #f2b705; --lost: #d32f2f; --place: #6a3fc1; --pick: #2463c9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615; --panel: #212120; --ink: #ecebe6; --muted: #a3a29c; --line: #3a3936;
+    --accent: #6fa1ff; --unknown: #2c2c2a; --free: #4a4a46; --wall: #e8e6df; --place: #b49aff; --pick: #6fa1ff;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+input, select, textarea { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0; }
+nav.tabs { display: flex; gap: 4px; }
+nav.tabs button { border: none; background: none; padding: 6px 10px; border-radius: 6px; }
+nav.tabs button.on { background: var(--bg); font-weight: 600; }
+#link { font-size: 13px; color: var(--muted); margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; flex: none; }
+.dot.ok { background: var(--ok); } .dot.bad { background: var(--danger); } .dot.wait { background: var(--warn); }
+#tokenbar { display: none; padding: 8px 12px; background: #fff3cd; color: #5c4400; gap: 8px; align-items: center; flex-wrap: wrap; }
+main { display: flex; height: calc(100% - 50px); }
+section.view { display: none; flex: 1; min-height: 0; }
+section.view.on { display: flex; }
+#mapwrap { position: relative; flex: 1; min-width: 0; touch-action: none; overflow: hidden; }
+canvas#map { width: 100%; height: 100%; display: block; }
+.mapbtns { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.mapbtns button { width: 40px; height: 40px; padding: 0; font-size: 18px; }
+.mapbtns button.on { background: var(--accent); color: #fff; }
+#stop { position: absolute; left: 10px; bottom: 12px; font-weight: 700; padding: 12px 22px; font-size: 16px; }
+#legend { position: absolute; left: 10px; top: 10px; font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; opacity: .92; max-width: calc(100% - 80px); }
+#legend span { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
+#legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+aside { width: 340px; border-left: 1px solid var(--line); background: var(--panel); overflow-y: auto; padding: 10px 12px 80px; }
+aside h2, .pane h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 6px; }
+.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 14px; }
+.kv b { font-weight: 500; color: var(--muted); }
+#hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+#point { display: none; border: 1px solid var(--pick); border-radius: 8px; padding: 8px; margin-top: 8px; }
+ul.places { list-style: none; padding: 0; margin: 0; }
+ul.places li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+ul.places li .name { flex: 1; cursor: pointer; }
+ul.places li .stale { color: var(--muted); font-size: 12px; }
+#toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; display: flex; flex-direction: column; gap: 6px; z-index: 10; width: min(560px, calc(100% - 24px)); }
+.toast { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: 8px 10px; box-shadow: 0 2px 10px rgba(0,0,0,.15); display: flex; gap: 8px; }
+.toast.error { border-left-color: var(--danger); } .toast.ok { border-left-color: var(--ok); }
+.toast span { flex: 1; } .toast button { border: none; padding: 0 4px; background: none; }
+.pane { flex: 1; overflow-y: auto; padding: 12px 16px 60px; max-width: 980px; }
+.svc { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: var(--panel); }
+.banner { background: #fdecea; color: #7a1d1d; border: 1px solid #f5c2c0; border-radius: 8px; padding: 10px 12px; }
+details { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); margin-top: 12px; }
+details > summary { padding: 10px 12px; cursor: pointer; font-weight: 600; }
+details > div { padding: 0 12px 12px; }
+pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; overflow: auto; max-height: 360px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.field { display: grid; grid-template-columns: 140px 1fr; gap: 6px; align-items: center; margin: 6px 0; }
+.field small { grid-column: 2; color: var(--muted); }
+table.knobs { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.knobs td, table.knobs th { border-bottom: 1px solid var(--line); padding: 5px 4px; text-align: left; vertical-align: top; }
+table.knobs td.doc { color: var(--muted); max-width: 360px; }
+table.knobs input, table.knobs select { width: 110px; }
+.changed { color: var(--warn); font-weight: 600; }
+@media (max-width: 760px) {
+  main { flex-direction: column; height: auto; }
+  section.view.on { flex-direction: column; }
+  #mapwrap { height: 62vh; flex: none; }
+  aside { width: auto; border-left: none; border-top: 1px solid var(--line); padding-bottom: 90px; }
+  .field { grid-template-columns: 1fr; } .field small { grid-column: 1; }
+  table.knobs .doc { display: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>quack-control</h1>
+  <nav class="tabs">
+    <button data-tab="mapview" class="on">Map</button>
+    <button data-tab="services">Services</button>
+    <button data-tab="advanced">Advanced</button>
+  </nav>
+  <div id="link"><span class="dot wait" id="linkdot"></span><span id="linktext">connecting…</span></div>
+</header>
+<div id="tokenbar">This duck's page needs its token:
+  <input id="tokenin" type="password" autocomplete="current-password" placeholder="token">
+  <button class="primary" id="tokengo">Use</button></div>
+<main>
+<section class="view on" id="mapview">
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <div id="legend">
+      <span><i style="background:var(--duck)"></i>duck</span><span><i style="background:var(--trail)"></i>walked</span>
+      <span><i style="background:var(--route)"></i>route</span><span><i style="background:var(--drop)"></i>drop</span>
+      <span><i style="background:var(--place)"></i>place</span>
+    </div>
+    <div class="mapbtns">
+      <button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button>
+      <button id="fit" title="Fit the map">⤢</button><button id="follow" title="Follow the duck">◎</button>
+    </div>
+    <button id="stop" class="danger" title="Stop whatever the duck is doing (go_to or exploring)">STOP</button>
+  </div>
+  <aside>
+    <div class="kv" id="kv"></div>
+    <div id="hint"></div>
+    <div id="point">
+      <div><b>Point</b> <span id="pointxy"></span></div>
+      <div class="row" style="margin-top:6px">
+        <button class="primary" id="gohere">Go here</button>
+        <input id="pointname" placeholder="name this point" style="flex:1">
+        <button id="namehere">Name</button>
+        <button id="pointcancel" title="Cancel">✕</button>
+      </div>
+    </div>
+    <h2>Explore</h2>
+    <div class="row">
+      <button id="exstart">Start</button><button id="exstop">Stop</button>
+      <button id="excomplete" title="Close the map as it is: saved, declared complete, frozen">Exploration complete</button>
+    </div>
+    <h2>Places</h2>
+    <ul class="places" id="places"></ul>
+    <div class="row" style="margin-top:8px">
+      <input id="teachname" placeholder="name where the duck stands" style="flex:1">
+      <button id="teach">Teach</button>
+    </div>
+  </aside>
+</section>
+
+<section class="view" id="services">
+  <div class="pane">
+    <h2>Managed services</h2>
+    <div id="svclist">…</div>
+    <p style="color:var(--muted);font-size:13px">Plain HTTP for the home network only: whoever reaches this page can drive the duck,
+      unless a token is set. Do not forward this port to the internet.</p>
+  </div>
+</section>
+
+<section class="view" id="advanced">
+  <div class="pane">
+    <div class="banner"><b>Advanced.</b> Every tool quack-navd offers, with its raw arguments, and the knobs that tune it.
+      These can wipe a map, walk the duck blind or make it behave worse. Each call that acts asks first.</div>
+    <details id="toolsbox">
+      <summary>All tools</summary>
+      <div>
+        <div class="row"><select id="toolsel" style="flex:1"></select><button id="toolreload">Reload</button></div>
+        <p id="tooldesc" style="color:var(--muted);font-size:13px;white-space:pre-wrap"></p>
+        <div id="toolform"></div>
+        <label class="row" style="font-size:13px"><input type="checkbox" id="rawtoggle"> raw JSON arguments</label>
+        <textarea id="rawargs" rows="4" style="width:100%;display:none">{}</textarea>
+        <div class="row" style="margin-top:6px"><button class="primary" id="toolcall">Call</button></div>
+        <pre id="toolout"></pre>
+      </div>
+    </details>
+    <details id="knobsbox">
+      <summary>Knobs</summary>
+      <div>
+        <p style="font-size:13px;color:var(--muted)">Saved to <code id="envfile">…</code>; quack-navd reads them when it starts,
+          so every change needs <b>Apply</b> — a restart that stops what the duck is doing, saves the map, and runs the homecoming as at boot.</p>
+        <div class="row">
+          <input id="knobfilter" placeholder="filter" style="flex:1">
+          <button id="knobsreload">Reload</button>
+          <button id="knobsresetall">Reset all</button>
+          <button class="danger" id="knobsapply">Apply (restart quack-navd)</button>
+        </div>
+        <p id="knobsstate" style="font-size:13px"></p>
+        <div id="knobs"></div>
+      </div>
+    </details>
+  </div>
+</section>
+</main>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const READS = ["robot.map_status", "robot.list_places", "robot.where_am_i", "robot.map_list", "robot.map_match"];
+let token = new URLSearchParams(location.search).get("token") || store("qc-token") || "";
+let svc = "quack-nav";            // the quack-nav service this page drives
+let es = null;
+
+function store(k, v) {
+  try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }
+  catch (e) { return null; }
+}
+// An element with text (never HTML) and an optional class.
+function el(tag, text, cls) {
+  const e = document.createElement(tag);
+  if (text != null) e.textContent = text;
+  if (cls) e.className = cls;
+  return e;
+}
+
+// ---- messages ----
+function toast(text, kind = "info", ms = 7000) {
+  const t = el("div", null, "toast " + kind);
+  const x = el("button", "✕"); x.onclick = () => t.remove();
+  t.append(el("span", text), x);
+  $("toasts").appendChild(t);
+  if (ms) setTimeout(() => t.remove(), ms);
+}
+
+// ---- the API ----
+async function api(path, body) {
+  const opts = { headers: {} };
+  if (token) opts.headers["X-Token"] = token;
+  if (body !== undefined) { opts.method = "POST"; opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+  let r;
+  try { r = await fetch("/api/" + path, opts); }
+  catch (e) { return { ok: false, error: "quack-control is unreachable: " + e.message, status: 0 }; }
+  let j = {};
+  try { j = await r.json(); } catch (e) { j = { ok: false, error: "HTTP " + r.status }; }
+  j.status = r.status;
+  if (r.status === 401) askToken();
+  return j;
+}
+
+// A tool's answer said out loud: refusals and soft "no"s as errors.
+function said(what, j) {
+  if (!j.ok) { toast(what + ": " + j.error, "error", 12000); return false; }
+  const r = j.result || {};
+  if (r.started === false || r.accepted === false) { toast(what + ": " + (r.reason || "not started"), "error", 12000); return false; }
+  toast(what + ": " + (r.hint || r.reason || "done"), "ok", 4000);
+  return true;
+}
+
+async function call(name, args, what) {
+  const j = await api(svc + "/call", { name, args });
+  return said(what || name, j);
+}
+
+function askToken() {
+  $("tokenbar").style.display = "flex";
+  setLink("bad", "needs the token");
+}
+$("tokengo").onclick = () => {
+  token = $("tokenin").value.trim(); store("qc-token", token);
+  $("tokenbar").style.display = "none"; connect(); loadServices();
+};
+
+// ---- tabs ----
+document.querySelectorAll("nav.tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("nav.tabs button").forEach((o) => o.classList.toggle("on", o === b));
+  document.querySelectorAll("section.view").forEach((v) => v.classList.toggle("on", v.id === b.dataset.tab));
+  if (b.dataset.tab === "mapview") resize();
+  if (b.dataset.tab === "services") loadServices();
+});
+
+// ---- live state ----
+const S = { frame: null, grid: null, img: null, pose: null, status: null, statusError: null, places: [], link: {}, follow: false, pick: null };
+
+function setLink(kind, text) { $("linkdot").className = "dot " + kind; $("linktext").textContent = text; }
+
+function connect() {
+  if (es) es.close();
+  const q = token ? "?token=" + encodeURIComponent(token) : "";
+  es = new EventSource("/api/" + svc + "/events" + q);
+  es.onopen = () => setLink("wait", "connected, waiting for quack-navd…");
+  es.onerror = () => { setLink("bad", "quack-control unreachable — reconnecting…"); };
+  es.addEventListener("link", (e) => { S.link = JSON.parse(e.data); showLink(); });
+  es.addEventListener("frame", (e) => onFrame(JSON.parse(e.data)));
+  es.addEventListener("pose", (e) => { S.pose = JSON.parse(e.data); draw(); });
+  es.addEventListener("status", (e) => { const j = JSON.parse(e.data); S.status = j.ok ? j.status : null; S.statusError = j.ok ? null : j.error; showStatus(); draw(); });
+  es.addEventListener("places", (e) => { const j = JSON.parse(e.data); S.places = j.ok ? (j.places.places || []) : []; showPlaces(j.ok ? null : j.error); draw(); });
+}
+
+function showLink() {
+  const nav = S.link.nav || "", map = S.link.map || "";
+  if (nav === "ok" && map === "streaming") setLink("ok", "live");
+  else if (nav === "ok") setLink("wait", "map: " + (map || "connecting"));
+  else setLink("bad", nav || "quack-navd not answering");
+}
+
+// ---- the map ----
+const canvas = $("map"), ctx = canvas.getContext("2d");
+const view = { cx: 0, cy: 0, s: 60, fitted: false };
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function onFrame(f) {
+  if (f.cells !== undefined) buildGrid(f);
+  S.frame = f;
+  if (!S.pose || f.seq >= (S.pose.seq || 0)) S.pose = { x: f.x, y: f.y, yaw: f.yaw, tracking: f.tracking, seated: f.seated, pose_sigma: f.pose_sigma, seq: f.seq };
+  if (!view.fitted && S.grid) fit();
+  showStatus();
+  draw();
+}
+
+function buildGrid(f) {
+  const raw = atob(f.cells), rows = f.rows, cols = f.cols;
+  if (raw.length !== rows * cols) { toast("a map frame arrived damaged", "error"); return; }
+  const off = document.createElement("canvas"); off.width = cols; off.height = rows;
+  const c = off.getContext("2d"), im = c.createImageData(cols, rows);
+  const rgb = (h) => { const v = parseInt(h.slice(1), 16); return [v >> 16, (v >> 8) & 255, v & 255]; };
+  const free = rgb(css("--free")), wall = rgb(css("--wall"));
+  let x0 = cols, x1 = -1, y0 = rows, y1 = -1;
+  for (let r = 0; r < rows; r++) {
+    for (let q = 0; q < cols; q++) {
+      const v = raw.charCodeAt(r * cols + q);
+      if (!v) continue;
+      // Image row 0 is the top: the map's last row (y grows up).
+      const i = ((rows - 1 - r) * cols + q) * 4, col = v === 2 ? wall : free;
+      im.data[i] = col[0]; im.data[i + 1] = col[1]; im.data[i + 2] = col[2]; im.data[i + 3] = 255;
+      if (q < x0) x0 = q; if (q > x1) x1 = q; if (r < y0) y0 = r; if (r > y1) y1 = r;
+    }
+  }
+  c.putImageData(im, 0, 0);
+  S.img = off;
+  S.grid = { x_min: f.x_min, y_min: f.y_min, cell: f.cell_m, rows, cols,
+             known: x1 < 0 ? null : [f.x_min + x0 * f.cell_m, f.y_min + y0 * f.cell_m, f.x_min + (x1 + 1) * f.cell_m, f.y_min + (y1 + 1) * f.cell_m] };
+}
+
+function size() { return [canvas.clientWidth, canvas.clientHeight]; }
+function toScreen(x, y) { const [w, h] = size(); return [w / 2 + (x - view.cx) * view.s, h / 2 - (y - view.cy) * view.s]; }
+function toWorld(px, py) { const [w, h] = size(); return [view.cx + (px - w / 2) / view.s, view.cy - (py - h / 2) / view.s]; }
+
+function fit() {
+  const g = S.grid; if (!g) return;
+  const b = g.known || [g.x_min, g.y_min, g.x_min + g.cols * g.cell, g.y_min + g.rows * g.cell];
+  const [w, h] = size();
+  if (!w || !h) return;
+  view.cx = (b[0] + b[2]) / 2; view.cy = (b[1] + b[3]) / 2;
+  view.s = Math.max(5, Math.min(400, 0.9 * Math.min(w / Math.max(0.5, b[2] - b[0]), h / Math.max(0.5, b[3] - b[1]))));
+  view.fitted = true;
+}
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1, [w, h] = size();
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!view.fitted) fit();
+  draw();
+}
+window.addEventListener("resize", resize);
+
+function line(points, color, width, dash) {
+  if (!points || points.length < 2) return;
+  ctx.beginPath();
+  points.forEach((p, i) => { const [x, y] = toScreen(p[0], p[1]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []); ctx.lineJoin = "round"; ctx.stroke(); ctx.setLineDash([]);
+}
+function disc(x, y, r, fill, stroke) {
+  const [px, py] = toScreen(x, y);
+  ctx.beginPath(); ctx.arc(px, py, r, 0, 2 * Math.PI);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+}
+
+function draw() {
+  const [w, h] = size();
+  if (!w || !h) return;
+  const p = S.pose;
+  if (p && S.follow) { view.cx = p.x; view.cy = p.y; }
+  ctx.fillStyle = css("--unknown"); ctx.fillRect(0, 0, w, h);
+  const g = S.grid;
+  if (g && S.img) {
+    const [x0, y1] = toScreen(g.x_min, g.y_min + g.rows * g.cell);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(S.img, x0, y1, g.cols * g.cell * view.s, g.rows * g.cell * view.s);
+  } else {
+    ctx.fillStyle = css("--muted"); ctx.font = "14px system-ui"; ctx.fillText("no map yet", 16, h / 2);
+  }
+  const f = S.frame, ex = S.status && S.status.explore;
+  if (f && f.trail) line(f.trail, css("--trail"), 2);
+  if (ex) {
+    line(ex.route_raw, css("--route-raw"), 2, [4, 4]);
+    line(ex.route, css("--route"), 3);
+    for (const d of ex.local || []) {
+      // The books: a drop (r >= 0.10 m) or an obstacle the sensor saw.
+      const drop = d[2] >= 0.10;
+      disc(d[0], d[1], Math.max(3, d[2] * view.s), drop ? css("--drop") + "aa" : css("--obstacle") + "88");
+    }
+    if (ex.goal) disc(ex.goal[0], ex.goal[1], 8, null, css("--goal"));
+    if (ex.aim) disc(ex.aim[0], ex.aim[1], 4, css("--aim"));
+  }
+  for (const pl of S.places) {
+    if (!pl.at || pl.stale) continue;
+    const [px, py] = toScreen(pl.at.x, pl.at.y);
+    ctx.beginPath(); ctx.arc(px, py, Math.max(4, pl.radius_m * view.s), 0, 2 * Math.PI);
+    ctx.strokeStyle = css("--place") + "66"; ctx.lineWidth = 1; ctx.stroke();
+    disc(pl.at.x, pl.at.y, 5, css("--place"));
+    ctx.fillStyle = css("--ink"); ctx.font = "12px system-ui"; ctx.fillText(pl.name, px + 8, py - 6);
+  }
+  if (S.pick) { disc(S.pick[0], S.pick[1], 7, null, css("--pick")); disc(S.pick[0], S.pick[1], 2, css("--pick")); }
+  if (p) {
+    const [px, py] = toScreen(p.x, p.y);
+    const sig = p.pose_sigma;
+    if (sig && sig.xy_major_m > 0) {
+      // One sigma, the major axis at its angle in the map frame.
+      ctx.beginPath();
+      ctx.ellipse(px, py, Math.max(2, sig.xy_major_m * view.s), Math.max(2, sig.xy_minor_m * view.s), -sig.major_axis_deg * Math.PI / 180, 0, 2 * Math.PI);
+      ctx.fillStyle = css("--duck") + "33"; ctx.fill(); ctx.strokeStyle = css("--duck"); ctx.lineWidth = 1; ctx.stroke();
+    }
+    const good = p.tracking && !p.seated, col = good ? css("--duck") : css("--lost");
+    ctx.save(); ctx.translate(px, py); ctx.rotate(-p.yaw);
+    ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, 8); ctx.lineTo(-4, 0); ctx.lineTo(-8, -8); ctx.closePath();
+    ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = "#000a"; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+  }
+  // Scale bar: one metre.
+  ctx.fillStyle = css("--ink"); ctx.fillRect(12, h - 64, view.s, 3);
+  ctx.font = "11px system-ui"; ctx.fillText("1 m", 12, h - 68);
+}
+
+// Pan, pinch, wheel, tap.
+const ptrs = new Map(); let gesture = null;
+canvas.addEventListener("pointerdown", (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+  gesture = { start: Date.now(), moved: 0, multi: ptrs.size > 1, last: centroid(), dist: spread() };
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!ptrs.has(e.pointerId) || !gesture) return;
+  ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+  const c = centroid(), d = spread();
+  gesture.moved += Math.hypot(c[0] - gesture.last[0], c[1] - gesture.last[1]);
+  if (gesture.moved > 6) setFollow(false);
+  view.cx -= (c[0] - gesture.last[0]) / view.s; view.cy += (c[1] - gesture.last[1]) / view.s;
+  if (ptrs.size > 1 && gesture.dist > 0 && d > 0) zoomAt(c, d / gesture.dist);
+  gesture.last = c; gesture.dist = d;
+  draw();
+});
+const up = (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  if (gesture && !gesture.multi && gesture.moved < 6 && Date.now() - gesture.start < 600 && ptrs.size === 0) pick(e.offsetX, e.offsetY);
+  gesture = ptrs.size ? { start: 0, moved: 99, multi: true, last: centroid(), dist: spread() } : null;
+};
+canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel", up);
+canvas.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt([e.offsetX, e.offsetY], Math.exp(-e.deltaY * 0.0015)); draw(); }, { passive: false });
+function centroid() { let x = 0, y = 0; for (const q of ptrs.values()) { x += q[0]; y += q[1]; } const n = Math.max(1, ptrs.size); return [x / n, y / n]; }
+function spread() { const v = [...ptrs.values()]; return v.length > 1 ? Math.hypot(v[0][0] - v[1][0], v[0][1] - v[1][1]) : 0; }
+function zoomAt(c, k) {
+  const before = toWorld(c[0], c[1]);
+  view.s = Math.max(5, Math.min(600, view.s * k));
+  const after = toWorld(c[0], c[1]);
+  view.cx += before[0] - after[0]; view.cy += before[1] - after[1];
+}
+$("zin").onclick = () => { const [w, h] = size(); zoomAt([w / 2, h / 2], 1.4); draw(); };
+$("zout").onclick = () => { const [w, h] = size(); zoomAt([w / 2, h / 2], 1 / 1.4); draw(); };
+$("fit").onclick = () => { setFollow(false); fit(); draw(); };
+$("follow").onclick = () => { setFollow(!S.follow); draw(); };
+function setFollow(on) { S.follow = on; $("follow").classList.toggle("on", on); }
+
+function pick(px, py) {
+  S.pick = toWorld(px, py);
+  $("point").style.display = "block";
+  $("pointxy").textContent = "(" + S.pick[0].toFixed(2) + ", " + S.pick[1].toFixed(2) + ") m";
+  draw();
+}
+function unpick() { S.pick = null; $("point").style.display = "none"; draw(); }
+$("pointcancel").onclick = unpick;
+$("gohere").onclick = async () => {
+  if (!S.pick) return;
+  const [x, y] = S.pick;
+  if (!confirm("Send the duck to (" + x.toFixed(2) + ", " + y.toFixed(2) + ")?")) return;
+  if (await call("robot.go_to", { x: +x.toFixed(3), y: +y.toFixed(3) }, "Go here")) unpick();
+};
+$("namehere").onclick = async () => {
+  const name = $("pointname").value.trim();
+  if (!S.pick || !name) { toast("type a name for the point first", "error"); return; }
+  const [x, y] = S.pick;
+  if (await call("robot.remember_place", { name, x: +x.toFixed(3), y: +y.toFixed(3) }, "Name “" + name + "”")) { $("pointname").value = ""; unpick(); }
+};
+$("stop").onclick = () => call("robot.go_to", { stop: true }, "Stop");
+
+// ---- status and controls ----
+function showStatus() {
+  const s = S.status, f = S.frame, kv = [];
+  if (S.statusError) kv.push(["quack-navd", S.statusError]);
+  if (s) {
+    const ex = s.explore || {}, house = s.house || {};
+    kv.push(["map", s.mapping ? (s.mode || "mapping") + (house.map ? " · " + house.map : "") : "mapping off"]);
+    kv.push(["position", s.seated ? "seated" : s.tracking ? "localized" : "searching"]);
+    if (s.pose_uncertainty) kv.push(["uncertainty", "±" + s.pose_uncertainty.xy_m + " m, ±" + s.pose_uncertainty.yaw_deg + "°"]);
+    let job = ex.state || "idle";
+    if (ex.state === "running") job = (ex.goal ? "going to (" + ex.goal[0] + ", " + ex.goal[1] + ")" : "exploring") + (ex.target_distance_m != null ? " · " + ex.target_distance_m + " m to go" : "");
+    else if (ex.reason) job += " — " + ex.reason;
+    kv.push(["job", job]);
+    if (house.percent_mapped != null) kv.push(["mapped", house.percent_mapped + " %" + (house.sessions != null ? " · " + house.sessions + " sessions" : "") + (house.done ? " · complete" : "")]);
+    if (ex.question_pending) kv.push(["asking", "where are we? — name this spot below"]);
+    $("hint").textContent = s.hint || "";
+  } else if (f) {
+    kv.push(["position", f.tracking ? "localized" : "searching"]);
+  }
+  $("kv").replaceChildren(...kv.flatMap(([k, v]) => [el("b", k), el("span", v)]));
+  $("exstart").disabled = !!(s && s.explore && s.explore.state === "running");
+}
+
+$("exstart").onclick = () => call("robot.map_explore", {}, "Explore");
+$("exstop").onclick = () => call("robot.map_explore", { stop: true }, "Stop exploring");
+$("excomplete").onclick = async () => {
+  if (!confirm("Declare the exploration complete? The map is saved and closed as it is; the duck stops exploring it and only navigates on it.")) return;
+  toast("Closing the map… (up to two minutes while a session saves)", "info", 5000);
+  call("robot.map_explore", { complete: true }, "Exploration complete");
+};
+$("teach").onclick = async () => {
+  const name = $("teachname").value.trim();
+  if (!name) { toast("type the name of the place where the duck stands", "error"); return; }
+  if (await call("robot.remember_place", { name }, "Teach “" + name + "”")) $("teachname").value = "";
+};
+
+function showPlaces(error) {
+  const ul = $("places"); ul.replaceChildren();
+  if (error) { ul.appendChild(el("li", error)); return; }
+  if (!S.places.length) { const li = el("li", "No places yet."); li.style.color = "var(--muted)"; ul.appendChild(li); return; }
+  for (const p of S.places) {
+    const n = el("span", p.name, "name");
+    if (p.stale) n.appendChild(el("span", " (stale: teach again)", "stale"));
+    else if (p.distance_m != null) n.appendChild(el("span", " " + p.distance_m + " m", "stale"));
+    const go = el("button", "Go"); go.disabled = p.stale;
+    go.onclick = () => { if (confirm("Send the duck to “" + p.name + "”?")) call("robot.go_to", { place: p.name }, "Go to " + p.name); };
+    const del = el("button", "Forget");
+    del.onclick = () => { if (confirm("Forget “" + p.name + "”?")) call("robot.forget_place", { name: p.name }, "Forget " + p.name); };
+    if (p.at) n.onclick = () => { view.cx = p.at.x; view.cy = p.at.y; setFollow(false); draw(); };
+    const li = el("li"); li.append(n, go, del); ul.appendChild(li);
+  }
+}
+
+// ---- services ----
+async function loadServices() {
+  const j = await api("services");
+  const box = $("svclist"); box.replaceChildren();
+  if (!j.ok) { box.textContent = j.error; return; }
+  for (const s of j.services) {
+    // The map view drives the first quack-nav service, whatever its name.
+    if (s.kind === "quack-nav" && svc !== s.name && !j.services.some((o) => o.name === svc)) { svc = s.name; connect(); }
+    const h = el("div", null, "row");
+    h.append(el("span", null, "dot " + (s.available ? "ok" : "bad")), el("b", s.name + " (" + s.kind + ")"));
+    const p = el("div", (s.available ? "available — " : "not available — ") + s.detail);
+    p.style.color = "var(--muted)"; p.style.fontSize = "13px";
+    const d = el("div", null, "svc"); d.append(h, p); box.appendChild(d);
+  }
+}
+
+// ---- advanced: every tool ----
+let catalog = [];
+async function loadCatalog() {
+  const j = await api(svc + "/catalog");
+  if (!j.ok) { toast("catalog: " + j.error, "error"); return; }
+  catalog = j.result || [];
+  const sel = $("toolsel"); sel.replaceChildren();
+  for (const t of catalog) { const o = el("option", t.name + (READS.includes(t.name) ? "" : "  (acts)")); o.value = t.name; sel.appendChild(o); }
+  showTool();
+}
+function showTool() {
+  const t = catalog.find((c) => c.name === $("toolsel").value); const form = $("toolform"); form.replaceChildren();
+  if (!t) return;
+  $("tooldesc").textContent = t.description || "";
+  const props = (t.parameters && t.parameters.properties) || {}, req = (t.parameters && t.parameters.required) || [];
+  for (const [k, sch] of Object.entries(props)) {
+    let input;
+    if (sch.type === "boolean") {
+      input = el("select");
+      for (const v of ["", "true", "false"]) { const o = el("option", v || "(unset)"); o.value = v; input.appendChild(o); }
+    } else {
+      input = el("input");
+      if (sch.type === "number" || sch.type === "integer") { input.inputMode = "decimal"; if (sch.minimum != null) input.placeholder = sch.minimum + " … " + (sch.maximum != null ? sch.maximum : ""); }
+    }
+    input.dataset.key = k; input.dataset.type = sch.type || "string";
+    const row = el("label", null, "field");
+    row.append(el("span", k + (req.includes(k) ? " *" : "")), input, el("small", sch.description || ""));
+    form.appendChild(row);
+  }
+  if (!Object.keys(props).length) { const p = el("p", "No arguments."); p.style.color = "var(--muted)"; form.appendChild(p); }
+}
+function formArgs(raw) {
+  if (raw) return JSON.parse($("rawargs").value || "{}");
+  const args = {};
+  for (const i of $("toolform").querySelectorAll("[data-key]")) {
+    const v = i.value.trim(); if (v === "") continue;
+    if (i.dataset.type === "boolean") args[i.dataset.key] = v === "true";
+    else if (i.dataset.type === "number" || i.dataset.type === "integer") { const n = Number(v); if (!isFinite(n)) throw new Error(i.dataset.key + " is a number"); args[i.dataset.key] = n; }
+    else args[i.dataset.key] = v;
+  }
+  return args;
+}
+$("toolsel").onchange = showTool;
+$("toolreload").onclick = loadCatalog;
+$("toolsbox").addEventListener("toggle", () => { if ($("toolsbox").open && !catalog.length) loadCatalog(); });
+$("rawtoggle").onchange = () => {
+  const raw = $("rawtoggle").checked;
+  if (raw) { try { $("rawargs").value = JSON.stringify(formArgs(false), null, 1); } catch (e) {} }
+  $("rawargs").style.display = raw ? "block" : "none";
+  $("toolform").style.display = raw ? "none" : "block";
+};
+$("toolcall").onclick = async () => {
+  const name = $("toolsel").value; let args;
+  if (!name) return;
+  try { args = formArgs($("rawtoggle").checked); } catch (e) { toast("arguments: " + e.message, "error"); return; }
+  const acts = !READS.includes(name);
+  if (acts && !confirm("Call " + name + " " + JSON.stringify(args) + "?\nIt acts on the duck.")) return;
+  $("toolout").textContent = "…";
+  const j = await api(svc + "/advanced", { name, args, confirmed: acts });
+  delete j.status;
+  $("toolout").textContent = JSON.stringify(j, null, 2);
+};
+
+// ---- advanced: the knobs ----
+let knobs = null;
+async function loadKnobs(body) {
+  const j = body === undefined ? await api(svc + "/knobs") : await api(svc + "/knobs", body);
+  if (!j.ok) { toast("knobs: " + j.error, "error", 12000); return false; }
+  knobs = j.result; renderKnobs(); return true;
+}
+function knobInput(k) {
+  const opts = (list) => { const s = el("select"); for (const [v, t] of list) { const o = el("option", t); o.value = v; s.appendChild(o); } return s; };
+  let input;
+  if (k.type === "switch") input = opts([["", "default" + (k.default != null ? " (" + k.default + ")" : k.unset ? " (" + k.unset + ")" : "")], ["1", "1 on"], ["0", "0 off"]]);
+  else if (k.type === "flag") input = opts([["", "unset (off)"], ["1", "1 on"]]);
+  else if (k.type === "choice") input = opts([["", "default (" + k.default + ")"]].concat(k.options.map((o) => [o, o])));
+  else { input = el("input"); input.placeholder = k.default != null ? k.default : "default"; if (k.type === "number") input.inputMode = "decimal"; }
+  input.value = k.saved != null ? k.saved : "";
+  return input;
+}
+function renderKnobs() {
+  $("envfile").textContent = knobs.env_file;
+  $("knobsstate").replaceChildren(el("span",
+    knobs.restart_needed ? "Saved values differ from what quack-navd runs with: Apply to use them." : "quack-navd runs with what is saved.",
+    knobs.restart_needed ? "changed" : ""));
+  const filter = $("knobfilter").value.trim().toUpperCase();
+  const box = $("knobs"); box.replaceChildren();
+  for (const group of ["QK", "MAPLOC"]) {
+    const list = knobs.knobs.filter((k) => k.group === group && (!filter || k.name.includes(filter) || (k.doc || "").toUpperCase().includes(filter)));
+    if (!list.length) continue;
+    box.appendChild(el("h2", group === "QK" ? "quack-nav (QK_*)" : "maploc (MAPLOC_*)"));
+    const t = el("table", null, "knobs");
+    const head = el("tr"); head.append(el("th", "knob"), el("th", "value"), el("th", "running"), el("th", "what the code says", "doc"), el("th"));
+    t.appendChild(head);
+    for (const k of list) {
+      const n = el("td", k.name, k.saved != null ? "changed" : ""); n.title = k.read_as + " — " + k.where.join(", ");
+      const input = knobInput(k); const v = el("td"); v.appendChild(input);
+      const r = el("td", k.running != null ? k.running : "default");
+      const d = el("td", (k.doc || "") + (k.default != null ? " (default " + k.default + ")" : ""), "doc");
+      const save = el("button", "Save");
+      save.onclick = () => { const val = input.value.trim(); loadKnobs({ set: { [k.name]: val === "" ? null : val } }).then((ok) => ok && toast(k.name + " saved; Apply to use it", "ok")); };
+      const reset = el("button", "Reset"); reset.disabled = k.saved == null;
+      reset.onclick = () => loadKnobs({ set: { [k.name]: null } });
+      const b = el("td"); b.append(save, reset);
+      const tr = el("tr"); tr.append(n, v, r, d, b); t.appendChild(tr);
+    }
+    box.appendChild(t);
+  }
+}
+$("knobsbox").addEventListener("toggle", () => { if ($("knobsbox").open && !knobs) loadKnobs(); });
+$("knobsreload").onclick = () => loadKnobs();
+$("knobfilter").oninput = () => knobs && renderKnobs();
+$("knobsresetall").onclick = () => { if (confirm("Drop every saved knob (back to the code's defaults at the next Apply)?")) loadKnobs({ reset_all: true }); };
+$("knobsapply").onclick = async () => {
+  if (!confirm("Restart quack-navd now?\nWhat the duck is doing stops, the map is saved, and the homecoming runs as at boot (the duck stands, finds the map and itself on it).")) return;
+  const j = await api(svc + "/restart", { confirmed: true });
+  if (!j.ok) { toast("restart: " + j.error, "error", 12000); return; }
+  if (j.result.restarting) toast("quack-navd is restarting; the page reconnects by itself", "ok", 10000);
+  else toast(j.result.reason || "not restarted", "error", 15000);
+};
+
+// ---- start ----
+(async () => {
+  const info = await api("info");
+  if (info.token_required && !token) askToken();
+  resize(); connect(); loadServices();
+  setInterval(() => { if ($("services").classList.contains("on")) loadServices(); }, 5000);
+})();
+</script>
+</body>
+</html>

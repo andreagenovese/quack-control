@@ -1,0 +1,54 @@
+[Unit]
+Description=quack-control — the Microduck's local control plane (a page on the home network)
+# After, not Requires: a down quack-navd must not keep the page from
+# starting; the page says it is unreachable and reconnects by itself.
+After=quack-navd.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+ExecStart=/usr/local/bin/quack-control /etc/robot/quack-control.toml
+Restart=always
+RestartSec=5s
+Environment=RUST_LOG=info
+# QC_TOKEN=… here (root-owned, mode 600) keeps the token out of the
+# world-readable config. The leading - : no file, no token from it.
+EnvironmentFile=-/etc/robot/quack-control.env
+StandardOutput=journal
+StandardError=journal
+
+# Unprivileged: `robot` reaches quack-navd's two sockets (0660, group
+# robot, see quack-nav's src/sockets.rs) — which is also the right to
+# drive the duck, served on the network by this process. Nothing else.
+User=quackctl
+Group=quackctl
+SupplementaryGroups=robot
+
+# A page, not the robot: it must never cost robotd or the navigation a
+# core. Nice 10 and a small share under contention; a few MB resident.
+Nice=10
+CPUWeight=30
+MemoryHigh=48M
+MemoryMax=64M
+
+# Hardening as quack-navd's, with AF_INET/AF_INET6 for the page. Port 8080
+# needs no capability.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

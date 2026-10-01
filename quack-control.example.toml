@@ -1,0 +1,24 @@
+# quack-control's config, installed to /etc/robot/quack-control.toml (the
+# path the unit, systemd/quack-control.service, passes). Every key left out
+# takes its default (src/config.rs); with no file at all, both services
+# below are managed at these paths.
+# scripts/install-on-duck.sh installs this file only when none is there.
+
+# Every interface, port 8080: the page on the home network. Plain HTTP —
+# never forward this port to the internet.
+bind = "0.0.0.0:8080"
+
+# A token every call and live stream must carry (the page asks for it once
+# and remembers it). Better kept out of this world-readable file: set
+# QC_TOKEN in /etc/robot/quack-control.env (mode 600), which the unit reads.
+# token = "a-long-random-string"
+
+[[service]]
+name = "quack-nav"
+kind = "quack-nav"
+nav_socket = "/run/quack-nav/nav.sock"
+map_socket = "/run/quack-nav/map.sock"
+
+[[service]]
+name = "quacksat"
+kind = "quacksat"
