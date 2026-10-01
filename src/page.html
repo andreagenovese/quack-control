@@ -328,7 +328,7 @@ function camWanted() {
 function camShow() {
   const w = $("cam");
   w.className = "c-" + cam.corner + (cam.open && cam.svc ? " on" : "") + (w.classList.contains("max") ? " max" : "");
-  $("camopen").style.display = cam.svc ? "" : "none";
+  $("camopen").style.display = cam.svc ? "block" : "none"; // the stylesheet hides it until a camera is known
   $("camopen").classList.toggle("on", cam.open);
 }
 function camKick() {
