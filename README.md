@@ -7,6 +7,13 @@ daemons it manages and talks to each one over its own unix sockets, through
 an adapter per kind: [quack-nav](https://github.com/andreagenovese/quacknav)
 now, quacksat and others later. Italian: [README.it.md](README.it.md).
 
+![The page on the MuJoCo twin](docs/media/page.jpg)
+
+*The page on the MuJoCo twin (casa_grande, 2026-10-01): the duck on its
+way to a tapped point — the route ahead in green, the path walked in pink,
+the drops it booked in red, two named places — and its camera in the
+corner.*
+
 Independent project, not affiliated with Pollen Robotics or Hugging Face.
 Status: 0.1.0, unreleased; tested against the MuJoCo twin (read-only so
 far), not yet on a duck.
