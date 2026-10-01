@@ -8,6 +8,12 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
 
 ## [Unreleased]
 
+### Modificato
+
+- Il percorso fatto mostra solo le ultime due corse (una corsa finisce
+  dove la papera resta ferma 20 s), non tutti i percorsi da quando
+  quack-control è partito.
+
 ### Aggiunto
 
 - **Il piano di controllo locale** (ADR 0001, 2026-10-01): un binario,

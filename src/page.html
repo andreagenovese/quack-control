@@ -519,7 +519,7 @@ function draw() {
     ctx.fillStyle = css("--muted"); ctx.font = "14px system-ui"; ctx.fillText("no map yet", 16, h / 2);
   }
   const f = S.frame, ex = S.status && S.status.explore;
-  if (f && f.trail) line(f.trail, css("--trail"), 2);
+  if (f && f.trails) for (const run of f.trails) line(run, css("--trail"), 2);
   if (ex) {
     line(ex.route_raw, css("--route-raw"), 2, [4, 4]);
     line(ex.route, css("--route"), 3);

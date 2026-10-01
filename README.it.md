@@ -18,7 +18,8 @@ ora in sola lettura), non ancora su un'anatra.
 
 - la mappa dal vivo (muri, pavimento, ignoto), la posa e la direzione
   dell'anatra — rossa quando è persa o seduta — e la sua incertezza (una
-  sigma), il percorso fatto, la rotta del lavoro in corso, la meta, i
+  sigma), il percorso fatto
+  nelle ultime due corse (una corsa finisce dove resta ferma 20 s), la rotta del lavoro in corso, la meta, i
   dislivelli e gli ostacoli nei suoi registri, i luoghi con un nome;
 - sposta e ingrandisci (trascina, pizzica, rotella), adatta, segui
   l'anatra;

@@ -24,7 +24,11 @@ use crate::http::event;
 /// A pose further than this from the trail's last point extends it.
 const TRAIL_STEP_M: f64 = 0.05;
 const TRAIL_MAX: usize = 4000;
-/// The trail sent with a frame: every n-th point, at most this many.
+/// The runs of the trail kept: the last journeys, not the whole day's.
+const TRAIL_RUNS: usize = 2;
+/// Standing still this long ends a run.
+const RUN_PAUSE: Duration = Duration::from_secs(20);
+/// Each run sent with a frame: every n-th point, at most this many.
 const TRAIL_SENT: usize = 1500;
 /// A frame whose submap count jumps by this many is another map (loaded,
 /// adopted, wiped): the trail drawn on the old one means nothing on it
@@ -231,24 +235,36 @@ impl Hub {
     }
 }
 
-/// The path walked, in map coordinates, from the trusted poses.
+/// The path walked, in map coordinates, from the trusted poses: the last
+/// [`TRAIL_RUNS`] runs only. A run ends where the duck stood still for
+/// [`RUN_PAUSE`] — one journey, one round of exploring — so a page shows
+/// where it went lately, not every path of the day.
 #[derive(Default)]
 struct Trail {
-    points: VecDeque<(f64, f64)>,
+    runs: VecDeque<VecDeque<(f64, f64)>>,
+    last_step: Option<Instant>,
     submaps: Option<i64>,
 }
 
 impl Trail {
     fn frame(&mut self, p: &Value) {
+        self.frame_at(p, Instant::now());
+    }
+
+    fn frame_at(&mut self, p: &Value, now: Instant) {
         let submaps = p.get("n_submaps").and_then(Value::as_i64).unwrap_or(0);
         if self.submaps.is_some_and(|before| (submaps - before).abs() >= SWAP_SUBMAPS) {
-            self.points.clear();
+            self.runs.clear();
         }
         self.submaps = Some(submaps);
-        self.pose(p);
+        self.pose_at(p, now);
     }
 
     fn pose(&mut self, p: &Value) {
+        self.pose_at(p, Instant::now());
+    }
+
+    fn pose_at(&mut self, p: &Value, now: Instant) {
         let tracking = p.get("tracking").and_then(Value::as_bool).unwrap_or(false);
         let seated = p.get("seated").and_then(Value::as_bool).unwrap_or(false);
         let (Some(x), Some(y)) = (p.get("x").and_then(Value::as_f64), p.get("y").and_then(Value::as_f64)) else {
@@ -257,24 +273,43 @@ impl Trail {
         if !tracking || seated {
             return;
         }
-        if self.points.back().is_none_or(|&(lx, ly)| (x - lx).hypot(y - ly) >= TRAIL_STEP_M) {
-            self.points.push_back((x, y));
-            if self.points.len() > TRAIL_MAX {
-                self.points.pop_front();
+        let last = self.runs.back().and_then(|r| r.back()).copied();
+        if last.is_some_and(|(lx, ly)| (x - lx).hypot(y - ly) < TRAIL_STEP_M) {
+            return;
+        }
+        let paused = self.last_step.is_none_or(|t| now.duration_since(t) >= RUN_PAUSE);
+        if self.runs.is_empty() || paused {
+            let mut run = VecDeque::new();
+            // A run starts where the last one stopped, so it reads as a path.
+            if let Some(point) = last {
+                run.push_back(point);
+            }
+            self.runs.push_back(run);
+            while self.runs.len() > TRAIL_RUNS {
+                self.runs.pop_front();
             }
         }
+        let run = self.runs.back_mut().expect("a run");
+        run.push_back((x, y));
+        if run.len() > TRAIL_MAX {
+            run.pop_front();
+        }
+        self.last_step = Some(now);
     }
 
+    /// Every run, thinned to at most [`TRAIL_SENT`] points, each ending at
+    /// its newest point.
     fn sent(&self) -> Value {
-        let every = self.points.len().div_ceil(TRAIL_SENT).max(1);
-        let mut out: Vec<Value> = self.points.iter().step_by(every).map(|&(x, y)| json!([round2(x), round2(y)])).collect();
-        // The newest point always, so the trail reaches the duck.
-        if let Some(&(x, y)) = self.points.back()
-            && (self.points.len() - 1) % every != 0
-        {
-            out.push(json!([round2(x), round2(y)]));
-        }
-        Value::Array(out)
+        Value::Array(self.runs.iter().map(|run| {
+            let every = run.len().div_ceil(TRAIL_SENT).max(1);
+            let mut out: Vec<Value> = run.iter().step_by(every).map(|&(x, y)| json!([round2(x), round2(y)])).collect();
+            if let Some(&(x, y)) = run.back()
+                && (run.len() - 1) % every != 0
+            {
+                out.push(json!([round2(x), round2(y)]));
+            }
+            Value::Array(out)
+        }).collect())
     }
 }
 
@@ -295,7 +330,7 @@ fn frame_item(p: &Value, trail: &Trail) -> Frame {
     if let Some(map) = light.as_object_mut() {
         map.remove("cells");
         map.insert("cells_id".into(), json!(cells_id.to_string()));
-        map.insert("trail".into(), trail.sent());
+        map.insert("trails".into(), trail.sent());
     }
     let mut full = light.clone();
     full["cells"] = json!(cells);
@@ -312,6 +347,10 @@ mod tests {
                "cells": cells, "n_submaps": submaps})
     }
 
+    fn len(t: &Trail) -> usize {
+        t.runs.iter().map(VecDeque::len).sum()
+    }
+
     #[test]
     fn the_trail_grows_by_steps_of_trusted_poses_and_resets_on_another_map() {
         let mut t = Trail::default();
@@ -320,11 +359,30 @@ mod tests {
         t.pose(&json!({"x": 0.2, "y": 0.0, "tracking": false}));
         t.pose(&json!({"x": 0.3, "y": 0.0, "tracking": true, "seated": true}));
         t.pose(&json!({"x": 0.1, "y": 0.0, "tracking": true}));
-        assert_eq!(t.points.len(), 2);
+        assert_eq!(len(&t), 2);
         t.frame(&frame(12, 0.2, "AAE="));
-        assert_eq!(t.points.len(), 3);
+        assert_eq!(len(&t), 3);
         t.frame(&frame(40, 0.2, "AAE="));
-        assert_eq!(t.points.len(), 1, "a swapped map starts a new trail");
+        assert_eq!(len(&t), 1, "a swapped map starts a new trail");
+    }
+
+    #[test]
+    fn only_the_last_two_runs_are_kept() {
+        let mut t = Trail::default();
+        let t0 = Instant::now();
+        let walk = |t: &mut Trail, from: f64, start: Instant| {
+            for i in 0..10 {
+                t.pose_at(&json!({"x": from + i as f64 * 0.1, "y": 0.0, "tracking": true}), start + Duration::from_secs(i));
+            }
+        };
+        walk(&mut t, 0.0, t0);
+        walk(&mut t, 1.0, t0 + Duration::from_secs(60));
+        assert_eq!(t.runs.len(), 2, "a stand ends a run");
+        walk(&mut t, 2.0, t0 + Duration::from_secs(120));
+        assert_eq!(t.runs.len(), TRAIL_RUNS);
+        assert_eq!(t.runs[0].front(), Some(&(0.9, 0.0)), "the oldest run is gone; a run starts where the last stopped");
+        let sent = t.sent();
+        assert_eq!(sent.as_array().unwrap().len(), 2);
     }
 
     #[test]
@@ -333,11 +391,11 @@ mod tests {
         for i in 0..TRAIL_MAX + 10 {
             t.pose(&json!({"x": i as f64 * 0.1, "y": 0.0, "tracking": true}));
         }
-        assert_eq!(t.points.len(), TRAIL_MAX);
+        assert_eq!(len(&t), TRAIL_MAX);
         let sent = t.sent();
-        let sent = sent.as_array().unwrap();
-        assert!(sent.len() <= TRAIL_SENT + 1, "{}", sent.len());
-        assert_eq!(sent.last().unwrap()[0], json!(round2((TRAIL_MAX + 9) as f64 * 0.1)));
+        let run = sent.as_array().unwrap().last().unwrap().as_array().unwrap();
+        assert!(run.len() <= TRAIL_SENT + 1, "{}", run.len());
+        assert_eq!(run.last().unwrap()[0], json!(round2((TRAIL_MAX + 9) as f64 * 0.1)));
     }
 
     #[test]

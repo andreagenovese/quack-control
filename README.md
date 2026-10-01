@@ -17,7 +17,7 @@ far), not yet on a duck.
 
 - the live map (walls, floor, unknown), the duck's pose and heading — red
   when it is lost or seated — and its uncertainty (one sigma), the path it
-  walked, the route of the job it runs, the goal, the drops and obstacles
+  walked on its last two runs (a run ends where it stood still 20 s), the route of the job it runs, the goal, the drops and obstacles
   on its books, the named places;
 - pan and zoom (drag, pinch, wheel), fit, follow the duck;
 - tap the map → **Go here** (asks first) or **Name** the point; a big

@@ -7,6 +7,11 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
 
 ## [Unreleased]
 
+### Changed
+
+- The path walked shows the last two runs only (a run ends where the duck
+  stood still 20 s), not every path since quack-control started.
+
 ### Added
 
 - **The local control plane** (ADR 0001, 2026-10-01): one binary,
