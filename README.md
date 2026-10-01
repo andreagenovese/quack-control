@@ -15,8 +15,8 @@ the drops it booked in red, two named places — and its camera in the
 corner.*
 
 Independent project, not affiliated with Pollen Robotics or Hugging Face.
-Status: 0.1.0, unreleased; tested against the MuJoCo twin (read-only so
-far), not yet on a duck.
+Status: 0.1.0, unreleased; tested against the MuJoCo twin (map, go_to,
+places, stop, knobs and restart, camera), not yet on a duck.
 
 ## What the page does
 

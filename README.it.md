@@ -8,9 +8,17 @@ socket unix, con un adattatore per tipo:
 [quack-nav](https://github.com/andreagenovese/quacknav) ora, quacksat e
 altri poi. Inglese: [README.md](README.md).
 
+![La pagina sul gemello MuJoCo](docs/media/page.jpg)
+
+*La pagina sul gemello MuJoCo (casa_grande, 2026-10-01): la papera
+diretta verso un punto toccato — la rotta davanti in verde, il percorso
+fatto in rosa, i dislivelli registrati in rosso, due luoghi con un nome —
+e la sua telecamera nell'angolo.*
+
 Progetto indipendente, nessuna affiliazione con Pollen Robotics o Hugging
-Face. Stato: 0.1.0, non rilasciato; provato contro il gemello MuJoCo (per
-ora in sola lettura), non ancora su un'anatra.
+Face. Stato: 0.1.0, non rilasciato; provato contro il gemello MuJoCo (mappa,
+go_to, luoghi, stop, manopole e riavvio, telecamera), non ancora su
+un'anatra.
 
 ## Che cosa fa la pagina
 
