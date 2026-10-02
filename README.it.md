@@ -31,6 +31,10 @@ un'anatra.
   dislivelli e gli ostacoli nei suoi registri, i luoghi con un nome;
 - sposta e ingrandisci (trascina, pizzica, rotella), adatta, segui
   l'anatra;
+  ruota la mappa (⟲ ⟳ di 90°, due dita liberamente, ⊞ mette i muri in
+  squadra con lo schermo, N torna alla mappa com'è disegnata) — salvato
+  per mappa nel browser, perché una mappa nasce dove stava l'anatra,
+  girata com'era rivolta;
 - tocca la mappa → **Go here** (chiede prima) o **Name** per dare un nome
   al punto; un grande **STOP** che ferma qualunque cosa stia facendo;
 - i luoghi: l'elenco con la distanza, **Go**, **Forget**, e **Teach** per

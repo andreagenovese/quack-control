@@ -26,7 +26,10 @@ places, stop, knobs and restart, camera), not yet on a duck.
   when it is lost or seated — and its uncertainty (one sigma), the path it
   walked on its last two runs (a run ends where it stood still 20 s), the route of the job it runs, the goal, the drops and obstacles
   on its books, the named places;
-- pan and zoom (drag, pinch, wheel), fit, follow the duck;
+- pan and zoom (drag, pinch, wheel), fit, follow the duck; turn the map
+  (⟲ ⟳ by 90°, two fingers freely, ⊞ squares the walls to the screen, N
+  back to the map as drawn) — kept per map in the browser, since a map
+  starts wherever the duck stood, turned as it was facing;
 - tap the map → **Go here** (asks first) or **Name** the point; a big
   **STOP** that stops whatever the duck is doing;
 - places: the list with their distance, **Go**, **Forget**, and **Teach**

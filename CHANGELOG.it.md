@@ -16,6 +16,9 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
 
 ### Aggiunto
 
+- La mappa ruota: ⟲ ⟳ di 90°, due dita liberamente, ⊞ mette i muri in
+  squadra con lo schermo (l'angolo con le proiezioni dei muri più nette),
+  N torna alla mappa com'è disegnata; salvato per mappa nel browser.
 - **Il piano di controllo locale** (ADR 0001, 2026-10-01): un binario,
   `quack-control`, che serve una pagina sulla rete di casa (default
   `0.0.0.0:8090`, non l'8080 della console di mediad; un token facoltativo, HTTP in chiaro solo per la LAN),

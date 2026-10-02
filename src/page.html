@@ -138,6 +138,8 @@ table.knobs input, table.knobs select { width: 110px; }
     <div class="mapbtns">
       <button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button>
       <button id="fit" title="Fit the map">⤢</button><button id="follow" title="Follow the duck">◎</button>
+      <button id="rotl" title="Turn the map left 90° (two fingers turn it freely)">⟲</button><button id="rotr" title="Turn the map right 90°">⟳</button>
+      <button id="square" title="Square the walls to the screen">⊞</button><button id="north" title="The map as the duck draws it (no turn)">N</button>
       <button id="camopen" title="The duck's camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linejoin="round"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
     </div>
@@ -432,7 +434,51 @@ function showLink() {
 
 // ---- the map ----
 const canvas = $("map"), ctx = canvas.getContext("2d");
-const view = { cx: 0, cy: 0, s: 60, fitted: false };
+const view = { cx: 0, cy: 0, s: 60, rot: 0, fitted: false };
+// The view's turn (radians, the map turned anticlockwise on screen), kept
+// per map: a map starts wherever the duck stood, turned as it was facing.
+let rotKey = null;
+function rotFor(map) {
+  const key = "qc-rot-" + (map || "");
+  if (key === rotKey) return;
+  rotKey = key;
+  const v = parseFloat(store(key) || "0");
+  view.rot = isFinite(v) ? v : 0;
+  const nb = document.getElementById("north");
+  if (nb) nb.classList.toggle("on", Math.abs(view.rot) > 1e-3);
+  if (S.grid) { fit(); draw(); } else view.fitted = false;
+}
+// The turn that puts the walls square to the screen: the angle (mod 90°)
+// whose projections of the wall cells on x and y are the sharpest.
+function wallAngle() {
+  const wl = S.grid && S.grid.walls;
+  if (!wl || wl.length < 40) return null;
+  const sharp = (deg) => {
+    const a = deg * Math.PI / 180, c = Math.cos(a), n = Math.sin(a), hx = new Map(), hy = new Map();
+    for (let i = 0; i < wl.length; i += 2) {
+      const x = wl[i], y = wl[i + 1], u = Math.round(x * c - y * n), v = Math.round(x * n + y * c);
+      hx.set(u, (hx.get(u) || 0) + 1); hy.set(v, (hy.get(v) || 0) + 1);
+    }
+    let score = 0;
+    for (const k of hx.values()) score += k * k;
+    for (const k of hy.values()) score += k * k;
+    return score;
+  };
+  // Coarse over the quadrant, then fine around the best.
+  let best = 0, bestScore = -1;
+  for (let deg = 0; deg < 90; deg += 3) { const sc = sharp(deg); if (sc > bestScore) { bestScore = sc; best = deg; } }
+  const around = best;
+  for (let deg = around - 3; deg <= around + 3; deg += 0.25) { const sc = sharp(deg); if (sc > bestScore) { bestScore = sc; best = deg; } }
+  return best * Math.PI / 180;
+}
+function setRot(a) {
+  const [w, h] = size(), c = toWorld(w / 2, h / 2);
+  view.rot = Math.atan2(Math.sin(a), Math.cos(a));
+  view.cx = c[0]; view.cy = c[1];
+  if (rotKey) store(rotKey, String(view.rot));
+  $("north").classList.toggle("on", Math.abs(view.rot) > 1e-3);
+  draw();
+}
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 function onFrame(f) {
@@ -452,6 +498,7 @@ function buildGrid(f) {
   const rgb = (h) => { const v = parseInt(h.slice(1), 16); return [v >> 16, (v >> 8) & 255, v & 255]; };
   const free = rgb(css("--free")), wall = rgb(css("--wall"));
   let x0 = cols, x1 = -1, y0 = rows, y1 = -1;
+  const walls = [];
   for (let r = 0; r < rows; r++) {
     for (let q = 0; q < cols; q++) {
       const v = raw.charCodeAt(r * cols + q);
@@ -459,18 +506,26 @@ function buildGrid(f) {
       // Image row 0 is the top: the map's last row (y grows up).
       const i = ((rows - 1 - r) * cols + q) * 4, col = v === 2 ? wall : free;
       im.data[i] = col[0]; im.data[i + 1] = col[1]; im.data[i + 2] = col[2]; im.data[i + 3] = 255;
+      if (v === 2) walls.push(q, r);
       if (q < x0) x0 = q; if (q > x1) x1 = q; if (r < y0) y0 = r; if (r > y1) y1 = r;
     }
   }
   c.putImageData(im, 0, 0);
   S.img = off;
-  S.grid = { x_min: f.x_min, y_min: f.y_min, cell: f.cell_m, rows, cols,
+  S.grid = { x_min: f.x_min, y_min: f.y_min, cell: f.cell_m, rows, cols, walls,
              known: x1 < 0 ? null : [f.x_min + x0 * f.cell_m, f.y_min + y0 * f.cell_m, f.x_min + (x1 + 1) * f.cell_m, f.y_min + (y1 + 1) * f.cell_m] };
 }
 
 function size() { return [canvas.clientWidth, canvas.clientHeight]; }
-function toScreen(x, y) { const [w, h] = size(); return [w / 2 + (x - view.cx) * view.s, h / 2 - (y - view.cy) * view.s]; }
-function toWorld(px, py) { const [w, h] = size(); return [view.cx + (px - w / 2) / view.s, view.cy - (py - h / 2) / view.s]; }
+function toScreen(x, y) {
+  const [w, h] = size(), c = Math.cos(view.rot), n = Math.sin(view.rot), dx = x - view.cx, dy = y - view.cy;
+  return [w / 2 + (dx * c - dy * n) * view.s, h / 2 - (dx * n + dy * c) * view.s];
+}
+function toWorld(px, py) {
+  const [w, h] = size(), c = Math.cos(view.rot), n = Math.sin(view.rot);
+  const u = (px - w / 2) / view.s, v = -(py - h / 2) / view.s;
+  return [view.cx + u * c + v * n, view.cy - u * n + v * c];
+}
 
 function fit() {
   const g = S.grid; if (!g) return;
@@ -478,7 +533,10 @@ function fit() {
   const [w, h] = size();
   if (!w || !h) return;
   view.cx = (b[0] + b[2]) / 2; view.cy = (b[1] + b[3]) / 2;
-  view.s = Math.max(5, Math.min(400, 0.9 * Math.min(w / Math.max(0.5, b[2] - b[0]), h / Math.max(0.5, b[3] - b[1]))));
+  // The box as turned on screen.
+  const c = Math.abs(Math.cos(view.rot)), n = Math.abs(Math.sin(view.rot)), bw = b[2] - b[0], bh = b[3] - b[1];
+  const sw = bw * c + bh * n, sh = bw * n + bh * c;
+  view.s = Math.max(5, Math.min(400, 0.9 * Math.min(w / Math.max(0.5, sw), h / Math.max(0.5, sh))));
   view.fitted = true;
 }
 
@@ -512,9 +570,11 @@ function draw() {
   ctx.fillStyle = css("--unknown"); ctx.fillRect(0, 0, w, h);
   const g = S.grid;
   if (g && S.img) {
-    const [x0, y1] = toScreen(g.x_min, g.y_min + g.rows * g.cell);
+    ctx.save();
+    ctx.translate(w / 2, h / 2); ctx.rotate(-view.rot);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(S.img, x0, y1, g.cols * g.cell * view.s, g.rows * g.cell * view.s);
+    ctx.drawImage(S.img, (g.x_min - view.cx) * view.s, -(g.y_min + g.rows * g.cell - view.cy) * view.s, g.cols * g.cell * view.s, g.rows * g.cell * view.s);
+    ctx.restore();
   } else {
     ctx.fillStyle = css("--muted"); ctx.font = "14px system-ui"; ctx.fillText("no map yet", 16, h / 2);
   }
@@ -546,11 +606,11 @@ function draw() {
     if (sig && sig.xy_major_m > 0) {
       // One sigma, the major axis at its angle in the map frame.
       ctx.beginPath();
-      ctx.ellipse(px, py, Math.max(2, sig.xy_major_m * view.s), Math.max(2, sig.xy_minor_m * view.s), -sig.major_axis_deg * Math.PI / 180, 0, 2 * Math.PI);
+      ctx.ellipse(px, py, Math.max(2, sig.xy_major_m * view.s), Math.max(2, sig.xy_minor_m * view.s), -(sig.major_axis_deg * Math.PI / 180 + view.rot), 0, 2 * Math.PI);
       ctx.fillStyle = css("--duck") + "33"; ctx.fill(); ctx.strokeStyle = css("--duck"); ctx.lineWidth = 1; ctx.stroke();
     }
     const good = p.tracking && !p.seated, col = good ? css("--duck") : css("--lost");
-    ctx.save(); ctx.translate(px, py); ctx.rotate(-p.yaw);
+    ctx.save(); ctx.translate(px, py); ctx.rotate(-(p.yaw + view.rot));
     ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, 8); ctx.lineTo(-4, 0); ctx.lineTo(-8, -8); ctx.closePath();
     ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = "#000a"; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
   }
@@ -564,7 +624,7 @@ const ptrs = new Map(); let gesture = null;
 canvas.addEventListener("pointerdown", (e) => {
   canvas.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
-  gesture = { start: Date.now(), moved: 0, multi: ptrs.size > 1, last: centroid(), dist: spread() };
+  gesture = { start: Date.now(), moved: 0, multi: ptrs.size > 1, last: centroid(), dist: spread(), angle: angle() };
 });
 canvas.addEventListener("pointermove", (e) => {
   if (!ptrs.has(e.pointerId) || !gesture) return;
@@ -572,8 +632,13 @@ canvas.addEventListener("pointermove", (e) => {
   const c = centroid(), d = spread();
   gesture.moved += Math.hypot(c[0] - gesture.last[0], c[1] - gesture.last[1]);
   if (gesture.moved > 6) setFollow(false);
-  view.cx -= (c[0] - gesture.last[0]) / view.s; view.cy += (c[1] - gesture.last[1]) / view.s;
+  const was = toWorld(gesture.last[0], gesture.last[1]), now = toWorld(c[0], c[1]);
+  view.cx += was[0] - now[0]; view.cy += was[1] - now[1];
   if (ptrs.size > 1 && gesture.dist > 0 && d > 0) zoomAt(c, d / gesture.dist);
+  // Two fingers turning turn the map.
+  const a = angle();
+  if (ptrs.size > 1 && gesture.angle != null && a != null) { turnAt(c, gesture.angle - a); }
+  gesture.angle = a;
   gesture.last = c; gesture.dist = d;
   draw();
 });
@@ -581,11 +646,20 @@ const up = (e) => {
   if (!ptrs.has(e.pointerId)) return;
   ptrs.delete(e.pointerId);
   if (gesture && !gesture.multi && gesture.moved < 6 && Date.now() - gesture.start < 600 && ptrs.size === 0) pick(e.offsetX, e.offsetY);
-  gesture = ptrs.size ? { start: 0, moved: 99, multi: true, last: centroid(), dist: spread() } : null;
+  gesture = ptrs.size ? { start: 0, moved: 99, multi: true, last: centroid(), dist: spread(), angle: angle() } : null;
+  if (!ptrs.size && rotKey) store(rotKey, String(view.rot));
 };
 canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel", up);
 canvas.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt([e.offsetX, e.offsetY], Math.exp(-e.deltaY * 0.0015)); draw(); }, { passive: false });
 function centroid() { let x = 0, y = 0; for (const q of ptrs.values()) { x += q[0]; y += q[1]; } const n = Math.max(1, ptrs.size); return [x / n, y / n]; }
+function angle() { const v = [...ptrs.values()]; return v.length > 1 ? Math.atan2(v[1][1] - v[0][1], v[1][0] - v[0][0]) : null; }
+function turnAt(c, da) {
+  const before = toWorld(c[0], c[1]);
+  view.rot = Math.atan2(Math.sin(view.rot + da), Math.cos(view.rot + da));
+  const after = toWorld(c[0], c[1]);
+  view.cx += before[0] - after[0]; view.cy += before[1] - after[1];
+  $("north").classList.toggle("on", Math.abs(view.rot) > 1e-3);
+}
 function spread() { const v = [...ptrs.values()]; return v.length > 1 ? Math.hypot(v[0][0] - v[1][0], v[0][1] - v[1][1]) : 0; }
 function zoomAt(c, k) {
   const before = toWorld(c[0], c[1]);
@@ -596,6 +670,16 @@ function zoomAt(c, k) {
 $("zin").onclick = () => { const [w, h] = size(); zoomAt([w / 2, h / 2], 1.4); draw(); };
 $("zout").onclick = () => { const [w, h] = size(); zoomAt([w / 2, h / 2], 1 / 1.4); draw(); };
 $("fit").onclick = () => { setFollow(false); fit(); draw(); };
+$("rotl").onclick = () => setRot(view.rot + Math.PI / 2);
+$("rotr").onclick = () => setRot(view.rot - Math.PI / 2);
+$("north").onclick = () => setRot(0);
+$("square").onclick = () => {
+  const a = wallAngle();
+  if (a == null) { toast("not enough walls on the map yet", "error"); return; }
+  // The nearest square turn to the one the view has.
+  const k = Math.round((view.rot - a) / (Math.PI / 2));
+  setRot(a + k * Math.PI / 2);
+};
 $("follow").onclick = () => { setFollow(!S.follow); draw(); };
 function setFollow(on) { S.follow = on; $("follow").classList.toggle("on", on); }
 
@@ -627,6 +711,7 @@ function showStatus() {
   if (S.statusError) kv.push(["quack-navd", S.statusError]);
   if (s) {
     const ex = s.explore || {}, house = s.house || {};
+    rotFor(house.map);
     kv.push(["map", s.mapping ? (s.mode || "mapping") + (house.map ? " · " + house.map : "") : "mapping off"]);
     kv.push(["position", s.seated ? "seated" : s.tracking ? "localized" : "searching"]);
     if (s.pose_uncertainty) kv.push(["uncertainty", "±" + s.pose_uncertainty.xy_m + " m, ±" + s.pose_uncertainty.yaw_deg + "°"]);

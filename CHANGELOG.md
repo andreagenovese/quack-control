@@ -14,6 +14,9 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
 
 ### Added
 
+- The map turns: ⟲ ⟳ by 90°, two fingers freely, ⊞ squares the walls to
+  the screen (the angle whose wall projections are sharpest), N back to
+  the map as drawn; kept per map in the browser.
 - **The local control plane** (ADR 0001, 2026-10-01): one binary,
   `quack-control`, serving one page on the home network (default
   `0.0.0.0:8090`, not mediad's console's 8080; an optional token, plain HTTP for the LAN only), with an
