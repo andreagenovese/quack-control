@@ -57,6 +57,11 @@ aside h2, .pane h2 { font-size: 13px; text-transform: uppercase; letter-spacing:
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 14px; }
 .kv b { font-weight: 500; color: var(--muted); }
 #hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+#badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+#badges span { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); }
+#badges .rest { color: var(--muted); }
+#badges .warn { color: #fff; background: var(--warn); border-color: var(--warn); }
+#badges .bad { color: #fff; background: var(--danger); border-color: var(--danger); }
 #point { display: none; border: 1px solid var(--pick); border-radius: 8px; padding: 8px; margin-top: 8px; }
 ul.places { list-style: none; padding: 0; margin: 0; }
 ul.places li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--line); }
@@ -152,6 +157,7 @@ table.knobs input, table.knobs select { width: 110px; }
   </div>
   <aside>
     <div class="kv" id="kv"></div>
+    <div id="badges"></div>
     <div id="hint"></div>
     <div id="point">
       <div><b>Point</b> <span id="pointxy"></span></div>
@@ -713,14 +719,22 @@ function showStatus() {
     const ex = s.explore || {}, house = s.house || {};
     rotFor(house.map);
     kv.push(["map", s.mapping ? (s.mode || "mapping") + (house.map ? " · " + house.map : "") : "mapping off"]);
-    kv.push(["position", s.seated ? "seated" : s.tracking ? "localized" : "searching"]);
+    kv.push(["position", s.seated ? "seated" : s.untrusted ? "to be checked" : s.tracking ? "localized" : "searching"]);
     if (s.pose_uncertainty) kv.push(["uncertainty", "±" + s.pose_uncertainty.xy_m + " m, ±" + s.pose_uncertainty.yaw_deg + "°"]);
     let job = ex.state || "idle";
-    if (ex.state === "running") job = (ex.goal ? "going to (" + ex.goal[0] + ", " + ex.goal[1] + ")" : "exploring") + (ex.target_distance_m != null ? " · " + ex.target_distance_m + " m to go" : "");
+    if (ex.state === "relocalizing" || ex.state === "searching") job = (ex.state === "relocalizing" ? "finding where it is" : "looking for where it is") + (ex.goal ? ", then to (" + ex.goal[0] + ", " + ex.goal[1] + ")" : "");
+    else if (ex.state === "running") job = (ex.goal ? "going to (" + ex.goal[0] + ", " + ex.goal[1] + ")" : "exploring") + (ex.target_distance_m != null ? " · " + ex.target_distance_m + " m to go" : "");
     else if (ex.reason) job += " — " + ex.reason;
     kv.push(["job", job]);
     if (house.percent_mapped != null) kv.push(["mapped", house.percent_mapped + " %" + (house.sessions != null ? " · " + house.sessions + " sessions" : "") + (house.done ? " · complete" : "")]);
     if (ex.question_pending) kv.push(["asking", "where are we? — name this spot below"]);
+    // What the duck is doing of its own accord, and its state of mind.
+    const b = [];
+    if (ex.self_started && ["running", "relocalizing", "searching"].includes(ex.state)) b.push(["warn", "moving on its own" + (ex.reason ? ": " + ex.reason : "")]);
+    if (s.untrusted) b.push(["bad", "may have been moved: it will find itself before the next job"]);
+    if (ex.stopped_by_user) b.push(["rest", "stopped by you: it starts nothing on its own until asked"]);
+    if (s.resting) b.push(["rest", "resting" + (s.rest_watch && s.rest_watch.verdict ? " · last check: " + s.rest_watch.verdict : "")]);
+    $("badges").replaceChildren(...b.map(([k, t]) => el("span", t, k)));
     $("hint").textContent = s.hint || "";
   } else if (f) {
     kv.push(["position", f.tracking ? "localized" : "searching"]);
@@ -748,9 +762,14 @@ function showPlaces(error) {
   if (!S.places.length) { const li = el("li", "No places yet."); li.style.color = "var(--muted)"; ul.appendChild(li); return; }
   for (const p of S.places) {
     const n = el("span", p.name, "name");
-    if (p.stale) n.appendChild(el("span", " (stale: teach again)", "stale"));
+    // The place's state (quack-nav 2026-10-02): usable, pending (the map
+    // not confirmed yet), other_map (another map is loaded), stale (its map
+    // is gone); older daemons only say `stale`.
+    const st = p.state || (p.stale ? "stale" : "usable");
+    const why = { pending: " (waiting: the duck has not found itself yet)", other_map: " (on another map" + (p.map ? ": " + p.map : "") + ")", stale: " (stale: teach again)" }[st];
+    if (why) n.appendChild(el("span", why, "stale"));
     else if (p.distance_m != null) n.appendChild(el("span", " " + p.distance_m + " m", "stale"));
-    const go = el("button", "Go"); go.disabled = p.stale;
+    const go = el("button", "Go"); go.disabled = st === "stale" || st === "other_map";
     go.onclick = () => { if (confirm("Send the duck to “" + p.name + "”?")) call("robot.go_to", { place: p.name }, "Go to " + p.name); };
     const del = el("button", "Forget");
     del.onclick = () => { if (confirm("Forget “" + p.name + "”?")) call("robot.forget_place", { name: p.name }, "Forget " + p.name); };

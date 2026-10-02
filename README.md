@@ -37,7 +37,11 @@ places, stop, knobs and restart, camera), not yet on a duck.
 - exploring: **Start**, **Stop**, **Exploration complete** (asks first);
 - the status line: mapping mode and map, localized or searching, the job
   (exploring, going somewhere, its outcome), how much of the house is
-  mapped and in how many sessions, the daemon's own hint; a quack-navd
+  mapped and in how many sessions, the daemon's own hint, and badges for
+  what the duck does of its own accord — moving on its own (and why), may
+  have been moved (it finds itself before the next job), resting, stopped
+  by you; places say whether they are usable, waiting for the duck to find
+  itself, on another map, or stale; a quack-navd
   that refuses says why, one that is unreachable says so, and the page
   reconnects by itself;
 - **the camera**: a small window over the map (the camera button, top

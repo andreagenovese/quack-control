@@ -14,6 +14,10 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
 
 ### Added
 
+- Badges for what the duck does of its own accord (quack-nav 2026-10-02):
+  moving on its own and why, may have been moved, resting with the last
+  check, stopped by the user; places by state (usable, waiting, on another
+  map, stale), Go only where it can go.
 - The map turns: ⟲ ⟳ by 90°, two fingers freely, ⊞ squares the walls to
   the screen (the angle whose wall projections are sharpest), N back to
   the map as drawn; kept per map in the browser.

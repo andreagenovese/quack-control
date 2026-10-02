@@ -16,6 +16,11 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
 
 ### Aggiunto
 
+- Badge per quello che l'anatra fa di sua iniziativa (quack-nav
+  2026-10-02): si muove da sola e perché, forse spostata, a riposo con
+  l'ultimo controllo, fermata dall'utente; i luoghi per stato
+  (utilizzabile, in attesa, su un'altra mappa, scaduto), Go solo dove può
+  andare.
 - La mappa ruota: ⟲ ⟳ di 90°, due dita liberamente, ⊞ mette i muri in
   squadra con lo schermo (l'angolo con le proiezioni dei muri più nette),
   N torna alla mappa com'è disegnata; salvato per mappa nel browser.

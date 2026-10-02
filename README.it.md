@@ -43,7 +43,11 @@ un'anatra.
   prima);
 - la riga di stato: modo di mappatura e mappa, localizzata o in ricerca, il
   lavoro (esplora, va da qualche parte, com'è finito), quanta casa è
-  mappata e in quante sessioni, il suggerimento del demone; un quack-navd
+  mappata e in quante sessioni, il suggerimento del demone, e i badge per
+  quello che l'anatra fa di sua iniziativa — si muove da sola (e perché),
+  forse spostata (si ritrova prima del prossimo lavoro), a riposo, fermata
+  da te; i luoghi dicono se sono utilizzabili, in attesa che l'anatra si
+  ritrovi, su un'altra mappa, o scaduti; un quack-navd
   che rifiuta dice perché, uno irraggiungibile lo dice, e la pagina si
   riconnette da sola;
 - **la telecamera**: una piccola finestra sopra la mappa (il pulsante
