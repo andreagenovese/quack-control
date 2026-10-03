@@ -41,9 +41,13 @@ What the control plane carries next. The items deferred by the decision of
       homecoming) — quack-navd does not say yet (study §5 "Two drivers").
 - [ ] Answer the explorer's "where are we?" from the page (`nav.take_question`
       is quacksat's today; the page shows `question_pending` only).
-- [ ] Test the interactive calls on the twin (go here, stop, explore,
-      teach, the knobs and Apply with `twin.sh restart-navd`); only the
-      reads have been run against it (2026-10-01).
+- [x] Test the interactive calls on the twin (2026-10-01/02, casa_grande):
+      places named at a point (a wall and off-map refused), go to a place
+      and to a tapped point, STOP mid-way, the knobs (a wrong value
+      refused, a set one in force after `twin.sh restart-navd`, reset),
+      the camera, the badges. Explore start/stop/complete were driven
+      through the nav socket by the stop_and_scan life test, not by the
+      page's buttons.
 - [ ] 2026-10-01: camera video — WebRTC from mediad (its `webrtcsink`
       stream, H.264, and the signalling on 8443) instead of polled JPEG
       snapshots: smooth video at a fraction of the CPU, but a WebRTC

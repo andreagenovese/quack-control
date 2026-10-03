@@ -1,6 +1,6 @@
 [package]
 name = "quack-control"
-version = "0.1.0"
+version = "0.1.0-rc1"
 edition = "2024"
 # The same floor as quack-nav's workspace.
 rust-version = "1.89"

@@ -15,8 +15,23 @@ the drops it booked in red, two named places — and its camera in the
 corner.*
 
 Independent project, not affiliated with Pollen Robotics or Hugging Face.
-Status: 0.1.0, unreleased; tested against the MuJoCo twin (map, go_to,
-places, stop, knobs and restart, camera), not yet on a duck.
+Status: **0.1.0-rc1**, the first release candidate
+([release notes](docs/release-notes-v0.1.0-rc1.md),
+[releases](https://github.com/andreagenovese/quack-control/releases));
+tested against quack-nav's MuJoCo twin (map, go_to, places, stop, knobs
+and restart, camera), not yet on a duck.
+
+### Compatibility
+
+| quack-control | quack-nav | quacksat |
+|---|---|---|
+| 0.1.0-rc1 | ≥ v0.2.0-rc2 | no control socket yet |
+
+With an older quack-navd the page degrades: what it lacks (`nav.knobs`,
+`nav.restart`, a place named at a tapped point, the rest / untrusted /
+self-started badges) answers "update quack-nav" or stays off. The camera
+needs Pollen's mediad, daemon-v0.14.4 or later (`media.frame`), or the
+twin's viewer ([The camera](#the-camera)).
 
 ## What the page does
 
@@ -184,7 +199,7 @@ failure answers for itself (503) for a second before the camera is asked
 again. Video (WebRTC, mediad's own stream) is for later
 ([docs/todo.md](docs/todo.md)).
 
-**Port 8090**: mediad's own console listens on `0.0.0.0:8090`
+**Port 8090**: mediad's own console listens on `0.0.0.0:8080`
 (`--web-port`, daemon-v0.15.0), so quack-control's default is 8090
 (since 2026-10-01; it was 8080, and the second to start could not listen).
 
@@ -198,11 +213,12 @@ No checkout and no build: every release carries an install package,
 `quack-control-<version>-aarch64-linux.tar.gz`, with its `.sha256` — the
 board's binary, the unit, the service account, the example config,
 `install-on-duck.sh` and a step-by-step `README-install.md` (Italian:
-`README-install.it.md`). No release is out yet; the first `v*` tag makes
-one. Your computer needs ssh, scp, tar and shasum.
+`README-install.it.md`). The bare binary, `quack-control-aarch64-linux`,
+is attached too, with its `.sha256`. Your computer needs ssh, scp, tar and
+shasum.
 
 ```sh
-V=0.1.0     # the release's tag without its v
+V=0.1.0-rc1     # the release's tag without its v
 gh release download "v$V" --repo andreagenovese/quack-control \
     --pattern "quack-control-$V-aarch64-linux.tar.gz*"
 # or: curl -LO https://github.com/andreagenovese/quack-control/releases/download/v$V/quack-control-$V-aarch64-linux.tar.gz
@@ -279,7 +295,7 @@ Why a repository of its own, the adapter model and the road to Pollen's
 channel: [docs/adr/0001-a-control-plane-of-its-own.md](docs/adr/0001-a-control-plane-of-its-own.md).
 
 ```sh
-cargo test --release      # 39 tests: HTTP, token, routes, every check on the calls, the camera
+cargo test --release      # 40 tests: HTTP, token, routes, every check on the calls, the camera
 ```
 
 ## License

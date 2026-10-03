@@ -93,12 +93,23 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: quack-control-aarch64-linux
           path: dist
 
+      # The release's text is docs/release-notes-<tag>.md when there is one,
+      # its relative links made absolute to the files at the tag.
+      - name: Release notes
+        run: |
+          python3 scripts/ci/release_body.py "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" "$RUNNER_TEMP/notes.md"
+          echo "NOTES=$RUNNER_TEMP/notes.md" >> "$GITHUB_ENV"
+
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
+          body_path: ${{ env.NOTES }}
           prerelease: ${{ contains(github.ref_name, '-rc') }}
+          generate_release_notes: false

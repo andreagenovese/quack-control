@@ -16,9 +16,24 @@ fatto in rosa, i dislivelli registrati in rosso, due luoghi con un nome —
 e la sua telecamera nell'angolo.*
 
 Progetto indipendente, nessuna affiliazione con Pollen Robotics o Hugging
-Face. Stato: 0.1.0, non rilasciato; provato contro il gemello MuJoCo (mappa,
-go_to, luoghi, stop, manopole e riavvio, telecamera), non ancora su
-un'anatra.
+Face. Stato: **0.1.0-rc1**, la prima release candidate
+([note di rilascio](docs/release-notes-v0.1.0-rc1.it.md),
+[release](https://github.com/andreagenovese/quack-control/releases));
+provato contro il gemello MuJoCo di quack-nav (mappa, go_to, luoghi, stop,
+manopole e riavvio, telecamera), non ancora su un'anatra.
+
+### Compatibilità
+
+| quack-control | quack-nav | quacksat |
+|---|---|---|
+| 0.1.0-rc1 | ≥ v0.2.0-rc2 | ancora nessun socket di controllo |
+
+Con un quack-navd più vecchio la pagina si riduce: quello che gli manca
+(`nav.knobs`, `nav.restart`, un luogo nominato in un punto toccato, i badge
+di riposo / posa non affidabile / movimento avviato da sé) risponde
+"update quack-nav" o resta spento. La telecamera richiede mediad di
+Pollen, daemon-v0.14.4 o successivo (`media.frame`), o il viewer del
+gemello ([La telecamera](#la-telecamera)).
 
 ## Che cosa fa la pagina
 
@@ -197,7 +212,7 @@ di 200 ms si serve dalla memoria, e un errore risponde per sé (503) per un
 secondo prima di richiedere alla telecamera. Il video (WebRTC, il flusso
 di mediad) è per dopo ([docs/todo.it.md](docs/todo.it.md)).
 
-**Porta 8090**: la console di mediad ascolta su `0.0.0.0:8090`
+**Porta 8090**: la console di mediad ascolta su `0.0.0.0:8080`
 (`--web-port`, daemon-v0.15.0), quindi il default di quack-control è 8090
 (dal 2026-10-01; era 8080, e il secondo che partiva non riusciva ad
 ascoltare).
@@ -213,11 +228,11 @@ pacchetto d'installazione, `quack-control-<versione>-aarch64-linux.tar.gz`,
 con il suo `.sha256` — il binario per la scheda, la unit, l'account di
 servizio, la configurazione d'esempio, `install-on-duck.sh` e un
 `README-install.it.md` passo per passo (inglese: `README-install.md`).
-Non è ancora uscita nessuna release; il primo tag `v*` ne crea una. Al tuo
-computer servono ssh, scp, tar e shasum.
+È allegato anche il binario nudo, `quack-control-aarch64-linux`, con il
+suo `.sha256`. Al tuo computer servono ssh, scp, tar e shasum.
 
 ```sh
-V=0.1.0     # il tag della release senza la v
+V=0.1.0-rc1     # il tag della release senza la v
 gh release download "v$V" --repo andreagenovese/quack-control \
     --pattern "quack-control-$V-aarch64-linux.tar.gz*"
 # oppure: curl -LO https://github.com/andreagenovese/quack-control/releases/download/v$V/quack-control-$V-aarch64-linux.tar.gz
@@ -295,7 +310,7 @@ strada verso il canale di Pollen:
 [docs/adr/0001-a-control-plane-of-its-own.it.md](docs/adr/0001-a-control-plane-of-its-own.it.md).
 
 ```sh
-cargo test --release      # 39 test: HTTP, token, rotte, ogni controllo sulle chiamate, la telecamera
+cargo test --release      # 40 test: HTTP, token, rotte, ogni controllo sulle chiamate, la telecamera
 ```
 
 ## Licenza

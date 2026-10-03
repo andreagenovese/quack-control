@@ -10,7 +10,9 @@ repository né una compilazione. Copia inglese:
 Cosa serve:
 
 - un'anatra con quack-nav già installato (quack-navd e il gruppo `robot`
-  a cui appartengono i suoi socket);
+  a cui appartengono i suoi socket) — v0.2.0-rc2 o successivo per la
+  pagina completa; uno più vecchio funziona con meno e dice "update
+  quack-nav";
 - accesso ssh all'anatra con un account che ha `sudo` (`microduck`
   sull'immagine della scheda; le immagini più vecchie avevano `radxa`);
 - sul tuo computer: `bash`, `ssh`, `scp`, `tar` e `shasum` o `sha256sum`

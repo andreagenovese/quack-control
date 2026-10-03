@@ -46,9 +46,13 @@ Inglese: [todo.md](todo.md).
 - [ ] Rispondere dalla pagina al "dove siamo?" dell'esploratore
       (`nav.take_question` oggi è di quacksat; la pagina mostra solo
       `question_pending`).
-- [ ] Provare sul gemello le chiamate interattive (go here, stop,
-      esplorazione, teach, le manopole e Apply con `twin.sh restart-navd`);
-      contro il gemello sono girate solo le letture (2026-10-01).
+- [x] Provare sul gemello le chiamate interattive (2026-10-01/02,
+      casa_grande): luoghi nominati su un punto (muro e fuori mappa
+      rifiutati), go verso un luogo e verso un punto toccato, STOP a metà,
+      le manopole (valore sbagliato rifiutato, uno impostato in vigore dopo
+      `twin.sh restart-navd`, ripristino), la telecamera, i badge. Avvio,
+      stop e completamento dell'esplorazione li ha mandati la prova in
+      stop_and_scan dal socket di navigazione, non i pulsanti della pagina.
 - [ ] 2026-10-01: video della telecamera — WebRTC da mediad (il suo
       flusso `webrtcsink`, H.264, e il signalling su 8443) invece degli
       snapshot JPEG interrogati: video fluido con una frazione della CPU,

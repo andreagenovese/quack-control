@@ -7,13 +7,18 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
 
 ## [Unreleased]
 
-### Changed
+## [0.1.0-rc1] - 2026-10-03
 
-- The path walked shows the last two runs only (a run ends where the duck
-  stood still 20 s), not every path since quack-control started.
+The first release candidate, tested against quack-nav's MuJoCo twin, not
+yet on a duck; it needs quack-nav v0.2.0-rc2 or later for the full page.
+Release notes: [docs/release-notes-v0.1.0-rc1.md](docs/release-notes-v0.1.0-rc1.md).
 
 ### Added
 
+- **Release notes on the release.** A `v*` tag's GitHub release takes
+  `docs/release-notes-<tag>.md` as its text, its relative links made
+  absolute to the files at the tag (`scripts/ci/release_body.py`, as in
+  quack-nav); a `-rc` tag is a prerelease.
 - **An install package for every release.** CI packs
   `quack-control-<version>-aarch64-linux.tar.gz` (with its `.sha256`)
   beside the bare binary, and a `v*` tag attaches both: the binary, the
@@ -35,7 +40,8 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
   `quack-control`, serving one page on the home network (default
   `0.0.0.0:8090`, not mediad's console's 8080; an optional token, plain HTTP for the LAN only), with an
   adapter per managed daemon.
-- **quack-nav**: the live map, pose, uncertainty, trail, route, goal,
+- **quack-nav**: the live map, pose, uncertainty, the path walked on the
+  last two runs (a run ends where the duck stood still 20 s), route, goal,
   drops and places; tap to go or to name a point, stop, places, explore
   start / stop / complete, the status line — through quack-nav's control
   contract, the map view's calls checked one by one. An advanced view

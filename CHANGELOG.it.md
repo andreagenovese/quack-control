@@ -8,14 +8,19 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
 
 ## [Unreleased]
 
-### Modificato
+## [0.1.0-rc1] - 2026-10-03
 
-- Il percorso fatto mostra solo le ultime due corse (una corsa finisce
-  dove la papera resta ferma 20 s), non tutti i percorsi da quando
-  quack-control è partito.
+La prima release candidate, provata contro il gemello MuJoCo di quack-nav,
+non ancora su un'anatra; per la pagina completa serve quack-nav v0.2.0-rc2
+o successiva. Note di rilascio:
+[docs/release-notes-v0.1.0-rc1.it.md](docs/release-notes-v0.1.0-rc1.it.md).
 
 ### Aggiunto
 
+- **Le note di rilascio sulla release.** La release GitHub di un tag `v*`
+  prende come testo `docs/release-notes-<tag>.md`, con i link relativi resi
+  assoluti ai file del tag (`scripts/ci/release_body.py`, come in
+  quack-nav); un tag `-rc` è una prerelease.
 - **Un pacchetto d'installazione per ogni release.** La CI impacchetta
   `quack-control-<versione>-aarch64-linux.tar.gz` (con il suo `.sha256`)
   accanto al binario nudo, e un tag `v*` li allega entrambi: il binario,
@@ -38,8 +43,9 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
   `quack-control`, che serve una pagina sulla rete di casa (default
   `0.0.0.0:8090`, non l'8080 della console di mediad; un token facoltativo, HTTP in chiaro solo per la LAN),
   con un adattatore per ogni demone gestito.
-- **quack-nav**: mappa, posa, incertezza, scia, rotta, meta, dislivelli e
-  luoghi dal vivo; tocca per andare o per dare un nome a un punto, stop,
+- **quack-nav**: mappa, posa, incertezza, il percorso fatto nelle ultime
+  due corse (una corsa finisce dove la papera resta ferma 20 s), rotta,
+  meta, dislivelli e luoghi dal vivo; tocca per andare o per dare un nome a un punto, stop,
   luoghi, avvio / stop / completamento dell'esplorazione, la riga di stato
   — attraverso il contratto di controllo di quack-nav, con le chiamate
   della vista mappa controllate una per una. Una vista avanzata con ogni

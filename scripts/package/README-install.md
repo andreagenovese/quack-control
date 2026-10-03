@@ -9,7 +9,8 @@ are needed. Italian copy: [README-install.it.md](README-install.it.md).
 What you need:
 
 - a duck with quack-nav installed first (quack-navd and the `robot`
-  group its sockets belong to);
+  group its sockets belong to) — v0.2.0-rc2 or later for the full page;
+  an older one works with less and says "update quack-nav";
 - ssh access to the duck with an account that has `sudo` (`microduck` on
   the board image; older images had `radxa`);
 - on your computer: `bash`, `ssh`, `scp`, `tar`, and `shasum` or
