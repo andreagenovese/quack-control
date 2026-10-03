@@ -1,6 +1,6 @@
 # Every push and pull request: the tests, and the board's aarch64 build
 # (the same cargo-zigbuild way as quack-nav's CI); a v* tag also puts that
-# build on the release. No remote yet: this file waits for one.
+# build, bare and as the install package, on the release.
 name: CI
 
 on:
@@ -25,7 +25,8 @@ jobs:
 
   # quack-control for the duck's board (Radxa Zero 3, RK3566, aarch64
   # Linux), built the way scripts/cross-build.sh builds it: cargo-zigbuild,
-  # glibc floor 2.31.
+  # glibc floor 2.31. Every push leaves it as an artifact, bare and as the
+  # install package.
   aarch64:
     runs-on: ubuntu-latest
     steps:
@@ -62,11 +63,29 @@ jobs:
           cp "$bin" dist/quack-control-aarch64-linux
           (cd dist && sha256sum quack-control-aarch64-linux > quack-control-aarch64-linux.sha256)
 
+      # The install package (scripts/package.sh): the binary with the unit,
+      # the account, the example config, install-on-duck.sh and the install
+      # README, so a release installs without a checkout. A tag names it
+      # after itself (v0.1.0 -> 0.1.0); any other push after Cargo.toml's
+      # version and the commit.
+      - name: Package
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)-dev.${GITHUB_SHA::7}"
+          fi
+          scripts/package.sh "$version" target/aarch64-unknown-linux-gnu/release/quack-control dist
+          tar tzvf dist/quack-control-"$version"-aarch64-linux.tar.gz
+
       - uses: actions/upload-artifact@v4
         with:
           name: quack-control-aarch64-linux
           path: dist/
 
+  # A v* tag: the install package, the bare binary and their checksums on
+  # the GitHub release, once the tests and the build have passed. A tag
+  # with -rc in it is a prerelease.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [test, aarch64]

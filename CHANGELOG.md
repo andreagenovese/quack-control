@@ -14,6 +14,16 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
 
 ### Added
 
+- **An install package for every release.** CI packs
+  `quack-control-<version>-aarch64-linux.tar.gz` (with its `.sha256`)
+  beside the bare binary, and a `v*` tag attaches both: the binary, the
+  unit, the service account, the example config, `install-on-duck.sh` and
+  a step-by-step `README-install.md` (and `.it.md`), so the duck installs
+  from a download (README, "Installing from a release").
+  `scripts/package.sh <version> <binary> <outdir>` packs it locally.
+  `install-on-duck.sh` runs from the package or from a checkout, takes
+  `--dry-run`, and no longer fails on macOS's bash 3.2 when `SSH_OPTS` is
+  empty.
 - Badges for what the duck does of its own accord (quack-nav 2026-10-02):
   moving on its own and why, may have been moved, resting with the last
   check, stopped by the user; places by state (usable, waiting, on another

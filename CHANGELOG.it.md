@@ -16,6 +16,16 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
 
 ### Aggiunto
 
+- **Un pacchetto d'installazione per ogni release.** La CI impacchetta
+  `quack-control-<versione>-aarch64-linux.tar.gz` (con il suo `.sha256`)
+  accanto al binario nudo, e un tag `v*` li allega entrambi: il binario,
+  la unit, l'account di servizio, la configurazione d'esempio,
+  `install-on-duck.sh` e un `README-install.it.md` passo per passo (e
+  `.md`), così l'anatra si installa da un download (README, "Installare da
+  una release"). `scripts/package.sh <versione> <binario> <cartella>` lo
+  impacchetta in locale. `install-on-duck.sh` gira dal pacchetto o da una
+  copia del repository, accetta `--dry-run` e non fallisce più con il bash
+  3.2 di macOS quando `SSH_OPTS` è vuoto.
 - Badge per quello che l'anatra fa di sua iniziativa (quack-nav
   2026-10-02): si muove da sola e perché, forse spostata, a riposo con
   l'ultimo controllo, fermata dall'utente; i luoghi per stato

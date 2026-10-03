@@ -204,12 +204,57 @@ ascoltare).
 
 ## Installarlo sull'anatra
 
-Dopo quack-nav (quack-navd e il gruppo `robot`):
+Dopo quack-nav (quack-navd e il gruppo `robot`).
+
+### Installare da una release
+
+Niente copia del repository e niente compilazione: ogni release porta un
+pacchetto d'installazione, `quack-control-<versione>-aarch64-linux.tar.gz`,
+con il suo `.sha256` — il binario per la scheda, la unit, l'account di
+servizio, la configurazione d'esempio, `install-on-duck.sh` e un
+`README-install.it.md` passo per passo (inglese: `README-install.md`).
+Non è ancora uscita nessuna release; il primo tag `v*` ne crea una. Al tuo
+computer servono ssh, scp, tar e shasum.
+
+```sh
+V=0.1.0     # il tag della release senza la v
+gh release download "v$V" --repo andreagenovese/quack-control \
+    --pattern "quack-control-$V-aarch64-linux.tar.gz*"
+# oppure: curl -LO https://github.com/andreagenovese/quack-control/releases/download/v$V/quack-control-$V-aarch64-linux.tar.gz
+#         (e lo stesso URL con .sha256)
+shasum -a 256 -c "quack-control-$V-aarch64-linux.tar.gz.sha256"   # stampa OK
+tar xzf "quack-control-$V-aarch64-linux.tar.gz" && cd "quack-control-$V"
+./install-on-duck.sh --dry-run microduck@192.168.1.42   # facoltativo: stampa ogni comando, non si collega
+./install-on-duck.sh microduck@192.168.1.42
+```
+
+Lo script trova i suoi file accanto a sé (`bin/quack-control`, `systemd/`,
+`quack-control.example.toml`) e li installa come nella tabella qui sotto.
+Poi, sull'anatra: i socket dei servizi in `/etc/robot/quack-control.toml`
+se sono diversi da quelli predefiniti di quack-navd e mediad
+([Farlo girare](#farlo-girare)), e un token in
+`/etc/robot/quack-control.env` ([Sicurezza](#sicurezza)):
+
+```sh
+sudo sh -c 'echo "QC_TOKEN=$(tr -dc a-z0-9 </dev/urandom | head -c 32)" > /etc/robot/quack-control.env'
+sudo systemctl restart quack-control
+```
+
+**Aggiornare**: il pacchetto della release più nuova, il suo
+`./install-on-duck.sh` allo stesso modo; la configurazione e il file del
+token restano. `scripts/package.sh <versione> <binario> <cartella>`
+impacchetta lo stesso pacchetto da una copia del repository, come fa la CI.
+
+### Da una copia del repository
 
 ```sh
 scripts/cross-build.sh                              # aarch64, glibc >= 2.31
 scripts/install-on-duck.sh microduck@192.168.1.42   # binario, unit, account, config
 ```
+
+In entrambi i casi `--dry-run` stampa ogni comando, compreso lo script che
+lancerebbe sull'anatra, e non si collega a niente; un secondo argomento
+installa un altro binario.
 
 | sull'anatra | da questo repo |
 |---|---|

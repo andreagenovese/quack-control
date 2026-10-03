@@ -190,12 +190,56 @@ again. Video (WebRTC, mediad's own stream) is for later
 
 ## Installing on the duck
 
-After quack-nav (quack-navd and the `robot` group):
+After quack-nav (quack-navd and the `robot` group).
+
+### Installing from a release
+
+No checkout and no build: every release carries an install package,
+`quack-control-<version>-aarch64-linux.tar.gz`, with its `.sha256` — the
+board's binary, the unit, the service account, the example config,
+`install-on-duck.sh` and a step-by-step `README-install.md` (Italian:
+`README-install.it.md`). No release is out yet; the first `v*` tag makes
+one. Your computer needs ssh, scp, tar and shasum.
+
+```sh
+V=0.1.0     # the release's tag without its v
+gh release download "v$V" --repo andreagenovese/quack-control \
+    --pattern "quack-control-$V-aarch64-linux.tar.gz*"
+# or: curl -LO https://github.com/andreagenovese/quack-control/releases/download/v$V/quack-control-$V-aarch64-linux.tar.gz
+#     (and the same URL with .sha256)
+shasum -a 256 -c "quack-control-$V-aarch64-linux.tar.gz.sha256"   # prints OK
+tar xzf "quack-control-$V-aarch64-linux.tar.gz" && cd "quack-control-$V"
+./install-on-duck.sh --dry-run microduck@192.168.1.42   # optional: prints every command, connects to nothing
+./install-on-duck.sh microduck@192.168.1.42
+```
+
+The script finds its files next to itself (`bin/quack-control`,
+`systemd/`, `quack-control.example.toml`) and installs them as in the
+table below. Then, on the duck: the services' sockets in
+`/etc/robot/quack-control.toml` if they differ from quack-navd's and
+mediad's defaults ([Running it](#running-it)), and a token in
+`/etc/robot/quack-control.env` ([Security](#security)):
+
+```sh
+sudo sh -c 'echo "QC_TOKEN=$(tr -dc a-z0-9 </dev/urandom | head -c 32)" > /etc/robot/quack-control.env'
+sudo systemctl restart quack-control
+```
+
+**Upgrading**: the newer release's package, its `./install-on-duck.sh`
+the same way; the config and the token file stay. `scripts/package.sh
+<version> <binary> <outdir>` packs the same package from a checkout, as
+CI does.
+
+### From a checkout
 
 ```sh
 scripts/cross-build.sh                              # aarch64, glibc >= 2.31
 scripts/install-on-duck.sh microduck@192.168.1.42   # binary, unit, account, config
 ```
+
+Either way, `--dry-run` prints every command, the script it would run on
+the duck included, and connects to nothing; a second argument installs
+another binary.
 
 | on the duck | from this repo |
 |---|---|
