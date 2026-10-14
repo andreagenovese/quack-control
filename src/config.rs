@@ -25,7 +25,7 @@ pub struct Config {
 pub struct ServiceConfig {
     /// Its name in the page and in the URLs (`/api/<name>/…`).
     pub name: String,
-    /// `quack-nav`, `mediad` or `quacksat` (see `src/adapters/`).
+    /// `quack-nav`, `mediad`, `quacksat` or `house3d` (see `src/adapters/`).
     pub kind: String,
     /// quack-nav: its nav socket (quack-navd's `socket`).
     #[serde(default = "nav_socket")]
@@ -38,6 +38,10 @@ pub struct ServiceConfig {
     /// `$STATE/media.sock`).
     #[serde(default = "media_socket")]
     pub media_socket: String,
+    /// house3d: the 3D house built off board (quack-nav's scripts/map3d,
+    /// `house3d.bin`), copied to the duck.
+    #[serde(default = "house_file")]
+    pub house_file: String,
 }
 
 fn nav_socket() -> String {
@@ -46,6 +50,12 @@ fn nav_socket() -> String {
 
 fn map_socket() -> String {
     "/run/quack-nav/map.sock".into()
+}
+
+/// Readable by quack-control's unit (ProtectSystem=strict leaves /var
+/// readable); written by whoever copies a new house there.
+fn house_file() -> String {
+    "/var/lib/quack-control/house3d.bin".into()
 }
 
 /// duck_ipc_proto's `socket::MEDIA` (daemon-v0.14.4 and later).
@@ -61,12 +71,14 @@ impl ServiceConfig {
             nav_socket: nav_socket(),
             map_socket: map_socket(),
             media_socket: media_socket(),
+            house_file: house_file(),
         }
     }
 }
 
 impl Default for Config {
-    /// quack-nav, the camera (mediad) and quacksat at their installed paths.
+    /// quack-nav, the camera (mediad), quacksat and the 3D house at their
+    /// installed paths.
     fn default() -> Self {
         Self {
             bind: "0.0.0.0:8090".into(),
@@ -75,6 +87,7 @@ impl Default for Config {
                 ServiceConfig::new("quack-nav", "quack-nav"),
                 ServiceConfig::new("camera", "mediad"),
                 ServiceConfig::new("quacksat", "quacksat"),
+                ServiceConfig::new("house", "house3d"),
             ],
         }
     }
@@ -138,7 +151,7 @@ mod tests {
     fn no_file_means_every_daemon_at_its_path() {
         let c = Config::load("/nonexistent/quack-control.toml").unwrap();
         let kinds: Vec<&str> = c.services.iter().map(|s| s.kind.as_str()).collect();
-        assert_eq!(kinds, ["quack-nav", "mediad", "quacksat"]);
+        assert_eq!(kinds, ["quack-nav", "mediad", "quacksat", "house3d"]);
         assert_eq!(c.services[1].media_socket, "/run/mediad/media.sock");
         assert_eq!(c.bind, "0.0.0.0:8090");
     }

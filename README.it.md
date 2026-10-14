@@ -76,6 +76,16 @@ gemello ([La telecamera](#la-telecamera)).
   finestra è aperta, la vista mappa mostrata e la pagina visibile —
   altrimenti nessuno.
 
+**3D** (sperimentale; c'è quando è configurato un servizio `house3d`,
+come di default): la casa in 3D con i colori della telecamera, costruita
+fuori dall'anatra da `scripts/map3d` di quack-nav con quello che l'anatra
+ha visto esplorando ([La casa in 3D](#la-casa-in-3d)). Si trascina per
+girarla, con due dita (o il tasto destro, o shift) per spostarla, si
+pizzica o si usa la rotella per lo zoom; isometrica, dall'alto (orientata
+come la scheda mappa), un'altezza a cui tagliarla perché si vedano le
+stanze, il percorso dell'anatra nella casa, e l'anatra dov'è adesso se la
+casa è stata costruita sulla mappa su cui si trova.
+
 **Services**: ogni demone gestito e se risponde. quacksat risulta non
 disponibile: non ha ancora un socket di controllo ([docs/todo.it.md](docs/todo.it.md)).
 
@@ -216,6 +226,31 @@ di mediad) è per dopo ([docs/todo.it.md](docs/todo.it.md)).
 (`--web-port`, daemon-v0.15.0), quindi il default di quack-control è 8090
 (dal 2026-10-01; era 8080, e il secondo che partiva non riusciva ad
 ascoltare).
+
+## La casa in 3D
+
+L'adattatore `house3d` (`src/adapters/house3d.rs`) serve un file,
+`/var/lib/quack-control/house3d.bin` (`house_file`): `GET info` la sua
+intestazione, `GET model` il file, che la pagina disegna con WebGL (senza
+librerie, niente dalla rete). Sull'anatra non si costruisce niente — la
+scheda è troppo piccola per il modello di profondità e tiene i suoi core
+per camminare: `scripts/map3d/record.py` di quack-nav registra accanto a
+un'anatra che esplora, `build.py` costruisce la casa su un Mac o un PC e
+scrive `house3d.bin` (qualche centinaio di kB a 2 cm), e lo si copia
+sull'anatra:
+
+```sh
+scp house3d.bin microduck@duck:/tmp/ && ssh microduck@duck \
+  sudo install -D -m 644 /tmp/house3d.bin /var/lib/quack-control/house3d.bin
+```
+
+Il file si rilegge quando cambia; il ↻ della pagina lo ricarica. Il
+formato: `QH3D`, una versione u16 (1), una lunghezza d'intestazione u16,
+l'intestazione (JSON: `points`, `voxel_m`, `map`, `frames`, `built`,
+`path`) allungata a un multiplo di 4, poi 12 byte a punto — x, y, z i16 in
+mm sul sistema della mappa, r, g, b u8, la normale x, y, z i8. Su una
+mappa diversa da quella su cui è stata costruita, la casa si vede lo
+stesso ma l'anatra non ci viene disegnata.
 
 ## Installarlo sull'anatra
 

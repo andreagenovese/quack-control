@@ -7,6 +7,13 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
 
 ## [Unreleased]
 
+### Added
+- The house in 3D (experimental): a `house3d` service (`house_file`,
+  `/var/lib/quack-control/house3d.bin`) serves the file quack-nav's
+  `scripts/map3d/build.py` writes off board, and a **3D** tab draws it with
+  WebGL — turn, move, zoom, isometric or from above, cut at a height, the
+  duck's way and the duck live on it. In the default services.
+
 ## [0.1.0-rc1] - 2026-10-03
 
 The first release candidate, tested against quack-nav's MuJoCo twin, not
