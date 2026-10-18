@@ -15,8 +15,8 @@ the drops it booked in red, two named places — and its camera in the
 corner.*
 
 Independent project, not affiliated with Pollen Robotics or Hugging Face.
-Status: **0.1.0-rc1**, the first release candidate
-([release notes](docs/release-notes-v0.1.0-rc1.md),
+Status: **0.1.0-rc2**, the second release candidate
+([release notes](docs/release-notes-v0.1.0-rc2.md), earlier: [0.1.0-rc1](docs/release-notes-v0.1.0-rc1.md),
 [releases](https://github.com/andreagenovese/quack-control/releases));
 tested against quack-nav's MuJoCo twin (map, go_to, places, stop, knobs
 and restart, camera), not yet on a duck.
@@ -25,6 +25,7 @@ and restart, camera), not yet on a duck.
 
 | quack-control | quack-nav | quacksat |
 |---|---|---|
+| 0.1.0-rc2 | ≥ v0.2.0-rc2 (the 3D house: quack-nav ≥ v0.3.0-rc2's `scripts/map3d`) | no control socket yet |
 | 0.1.0-rc1 | ≥ v0.2.0-rc2 | no control socket yet |
 
 With an older quack-navd the page degrades: what it lacks (`nav.knobs`,

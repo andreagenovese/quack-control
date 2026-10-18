@@ -16,8 +16,8 @@ fatto in rosa, i dislivelli registrati in rosso, due luoghi con un nome —
 e la sua telecamera nell'angolo.*
 
 Progetto indipendente, nessuna affiliazione con Pollen Robotics o Hugging
-Face. Stato: **0.1.0-rc1**, la prima release candidate
-([note di rilascio](docs/release-notes-v0.1.0-rc1.it.md),
+Face. Stato: **0.1.0-rc2**, la seconda release candidate
+([note di rilascio](docs/release-notes-v0.1.0-rc2.it.md), precedenti: [0.1.0-rc1](docs/release-notes-v0.1.0-rc1.it.md),
 [release](https://github.com/andreagenovese/quack-control/releases));
 provato contro il gemello MuJoCo di quack-nav (mappa, go_to, luoghi, stop,
 manopole e riavvio, telecamera), non ancora su un'anatra.
@@ -26,6 +26,7 @@ manopole e riavvio, telecamera), non ancora su un'anatra.
 
 | quack-control | quack-nav | quacksat |
 |---|---|---|
+| 0.1.0-rc2 | ≥ v0.2.0-rc2 (la casa 3D: `scripts/map3d` di quack-nav ≥ v0.3.0-rc2) | ancora nessun socket di controllo |
 | 0.1.0-rc1 | ≥ v0.2.0-rc2 | ancora nessun socket di controllo |
 
 Con un quack-navd più vecchio la pagina si riduce: quello che gli manca

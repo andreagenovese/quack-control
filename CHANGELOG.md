@@ -7,12 +7,22 @@ break things). Italian copy: [CHANGELOG.it.md](CHANGELOG.it.md).
 
 ## [Unreleased]
 
+## [0.1.0-rc2] - 2026-10-18
+
+The second release candidate, tested against quack-nav's MuJoCo twin, not
+yet on a duck. Release notes: [docs/release-notes-v0.1.0-rc2.md](docs/release-notes-v0.1.0-rc2.md).
+
 ### Added
 - The house in 3D (experimental): a `house3d` service (`house_file`,
   `/var/lib/quack-control/house3d.bin`) serves the file quack-nav's
   `scripts/map3d/build.py` writes off board, and a **3D** tab draws it with
   WebGL — turn, move, zoom, isometric or from above, cut at a height, the
   duck's way and the duck live on it. In the default services.
+  quack-nav's `scripts/map3d/send.sh` puts the file on the duck.
+
+### Changed
+- CI: actions on Node 24 (checkout v7, upload-artifact v7,
+  download-artifact v8, action-gh-release v3), as quack-nav's.
 
 ## [0.1.0-rc1] - 2026-10-03
 
