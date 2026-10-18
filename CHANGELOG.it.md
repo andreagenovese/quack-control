@@ -21,6 +21,10 @@ quack-nav, non ancora su un'anatra. Note di rilascio: [docs/release-notes-v0.1.0
   o dall'alto, taglio in altezza, il percorso e l'anatra dal vivo. Nei
   servizi di default. `scripts/map3d/send.sh` di quack-nav mette il file
   sull'anatra.
+- La mappa disegna lo strato di quack-nav (v0.3.0-rc2, il 2.5D
+  all'altezza dell'anatra): marrone dove qualcosa è d'ingombro, beige sotto
+  un piano, con una voce in legenda finché ce n'è. Viaggia con la griglia,
+  solo quando l'una o l'altro cambiano.
 
 ### Modificato
 - CI: azioni su Node 24 (checkout v7, upload-artifact v7,

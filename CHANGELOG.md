@@ -19,6 +19,10 @@ yet on a duck. Release notes: [docs/release-notes-v0.1.0-rc2.md](docs/release-no
   WebGL — turn, move, zoom, isometric or from above, cut at a height, the
   duck's way and the duck live on it. In the default services.
   quack-nav's `scripts/map3d/send.sh` puts the file on the duck.
+- The map draws quack-nav's band (v0.3.0-rc2, the 2.5D layer at the
+  duck's height): brown where something is in the way, tan under a top,
+  with a legend entry while there is any. It is sent with the grid, only
+  when either changes.
 
 ### Changed
 - CI: actions on Node 24 (checkout v7, upload-artifact v7,

@@ -318,22 +318,28 @@ fn round2(v: f64) -> f64 {
 }
 
 /// A `map.frame`'s params as the page takes them: everything the daemon
-/// sent, the trail, and the grid's identity.
+/// sent, the trail, and the grid's identity. The band (quack-nav's 2.5D
+/// layer, on the grid's cells) goes with the grid: sent when either changes.
 fn frame_item(p: &Value, trail: &Trail) -> Frame {
     let cells = p.get("cells").and_then(Value::as_str).unwrap_or_default();
+    let band = p.get("band").and_then(Value::as_str);
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    (cells, p.get("rows"), p.get("cols")).hash(&mut hasher);
+    (cells, band, p.get("rows"), p.get("cols")).hash(&mut hasher);
     p.get("x_min").map(Value::to_string).hash(&mut hasher);
     p.get("y_min").map(Value::to_string).hash(&mut hasher);
     let cells_id = hasher.finish();
     let mut light = p.clone();
     if let Some(map) = light.as_object_mut() {
         map.remove("cells");
+        map.remove("band");
         map.insert("cells_id".into(), json!(cells_id.to_string()));
         map.insert("trails".into(), trail.sent());
     }
     let mut full = light.clone();
     full["cells"] = json!(cells);
+    if let Some(band) = band {
+        full["band"] = json!(band);
+    }
     Frame { cells_id, full: event("frame", &full.to_string()), light: event("frame", &light.to_string()) }
 }
 
@@ -396,6 +402,22 @@ mod tests {
         let run = sent.as_array().unwrap().last().unwrap().as_array().unwrap();
         assert!(run.len() <= TRAIL_SENT + 1, "{}", run.len());
         assert_eq!(run.last().unwrap()[0], json!(round2((TRAIL_MAX + 9) as f64 * 0.1)));
+    }
+
+    #[test]
+    fn the_band_goes_with_the_grid() {
+        let t = Trail::default();
+        let mut f = frame(1, 0.0, "AAE=");
+        let plain = frame_item(&f, &t);
+        assert!(!plain.full.contains("\"band\""), "no band, none sent");
+        f["band"] = json!("AA0=");
+        let a = frame_item(&f, &t);
+        f["band"] = json!("AQ0=");
+        let b = frame_item(&f, &t);
+        assert_ne!(plain.cells_id, a.cells_id);
+        assert_ne!(a.cells_id, b.cells_id, "a band that changed is a grid to send again");
+        assert!(a.full.contains("\"band\":\"AA0=\""));
+        assert!(!a.light.contains("\"band\""));
     }
 
     #[test]

@@ -40,7 +40,10 @@ gemello ([La telecamera](#la-telecamera)).
 
 **Mappa** (la vista iniziale):
 
-- la mappa dal vivo (muri, pavimento, ignoto), la posa e la direzione
+- la mappa dal vivo (muri, pavimento, ignoto) e, da quack-nav v0.3.0-rc2,
+  il suo strato: ciò che il sensore di profondità ha trovato d'ingombro
+  all'altezza dell'anatra (marrone) e i piani di tavoli o i bordi dei letti
+  con il pavimento sotto (beige), che la navigazione aggira come muri; la posa e la direzione
   dell'anatra — rossa quando è persa o seduta — e la sua incertezza (una
   sigma), il percorso fatto
   nelle ultime due corse (una corsa finisce dove resta ferma 20 s), la rotta del lavoro in corso, la meta, i

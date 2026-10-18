@@ -38,7 +38,10 @@ twin's viewer ([The camera](#the-camera)).
 
 **Map** (the default view):
 
-- the live map (walls, floor, unknown), the duck's pose and heading — red
+- the live map (walls, floor, unknown) and, from quack-nav v0.3.0-rc2,
+  its band: what the depth sensor found in the way at the duck's height
+  (brown) and table tops or bed edges with floor under them (tan), which
+  the navigation goes round as walls; the duck's pose and heading — red
   when it is lost or seated — and its uncertainty (one sigma), the path it
   walked on its last two runs (a run ends where it stood still 20 s), the route of the job it runs, the goal, the drops and obstacles
   on its books, the named places;

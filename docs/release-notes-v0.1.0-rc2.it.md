@@ -27,6 +27,11 @@ Face.
   che la pagina rilegge quando cambia (↻). Sull'anatra non si costruisce
   niente. Senza il file la scheda dice come farne uno. Dettagli:
   [README, La casa in 3D](../README.it.md#la-casa-in-3d).
+- **Lo strato sulla mappa.** Con quack-nav v0.3.0-rc2 la mappa mostra anche
+  ciò che il sensore di profondità ha trovato d'ingombro all'altezza
+  dell'anatra (marrone) e i piani di tavoli o i bordi dei letti con il
+  pavimento sotto (beige): ciò che la navigazione aggira come muri. Viaggia
+  con la griglia, solo quando cambia.
 - CI: azioni su Node 24.
 
 ## Installazione
@@ -58,5 +63,5 @@ e:
 
 - la casa 3D è un'anteprima: sul gemello i suoi colori sono sintetici, e
   gli assi e gli intrinseci della camera vanno verificati sull'anatra;
-- la mappa 2D non disegna ancora lo strato di quack-nav (lo strato 2.5D
-  all'altezza dell'anatra).
+- lo strato si disegna come lo legge quack-nav; lungo alcuni muri si vede
+  come un bordo marrone, che la navigazione legge comunque come muro.

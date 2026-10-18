@@ -25,6 +25,10 @@ Independent project, not affiliated with Pollen Robotics or Hugging Face.
   `/var/lib/quack-control/house3d.bin`, which the page reads again when it
   changes (↻). Nothing is built on the duck. Without the file the tab says
   how to make one. Details: [README, The house in 3D](../README.md#the-house-in-3d).
+- **The band on the map.** With quack-nav v0.3.0-rc2 the map also shows
+  what the depth sensor found in the way at the duck's height (brown) and
+  table tops or bed edges with floor under them (tan): what the navigation
+  goes round as walls. Sent with the grid, only when it changes.
 - CI: actions on Node 24.
 
 ## Install
@@ -56,5 +60,5 @@ and:
 
 - the 3D house is a preview: its colours on the twin are synthetic, and
   the camera's axes and intrinsics are to be checked on the duck;
-- the 2D map does not draw quack-nav's band (the 2.5D layer at the duck's
-  height) yet.
+- the band is drawn as quack-nav reads it; along some walls it shows as a
+  brown rim, which the navigation reads as wall anyway.

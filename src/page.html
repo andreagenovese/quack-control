@@ -14,11 +14,13 @@
   --unknown: #d9d7cf; --free: #fbfaf6; --wall: #2b2b2b;
   --trail: #e0457b; --route: #1f9d3a; --route-raw: #9fd3a8; --goal: #0aa5a5; --aim: #d4b106;
   --drop: #d32f2f; --obstacle: #ef8a17; --duck: #f2b705; --lost: #d32f2f; --place: #6a3fc1; --pick: #2463c9;
+  --band: #a0522d; --overhang: #d9a066;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #161615; --panel: #212120; --ink: #ecebe6; --muted: #a3a29c; --line: #3a3936;
     --accent: #6fa1ff; --unknown: #2c2c2a; --free: #4a4a46; --wall: #e8e6df; --place: #b49aff; --pick: #6fa1ff;
+    --band: #d0844f; --overhang: #8a6a45;
   }
 }
 * { box-sizing: border-box; }
@@ -50,6 +52,7 @@ canvas#map { width: 100%; height: 100%; display: block; }
 #stop { position: absolute; left: 10px; bottom: 12px; font-weight: 700; padding: 12px 22px; font-size: 16px; }
 #legend { position: absolute; left: 10px; top: 10px; font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; opacity: .92; max-width: calc(100% - 80px); }
 #legend span { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
+#legend span[hidden] { display: none; }
 #legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 aside { width: 340px; border-left: 1px solid var(--line); background: var(--panel); overflow-y: auto; padding: 10px 12px 80px; }
 aside h2, .pane h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 6px; }
@@ -149,6 +152,7 @@ table.knobs input, table.knobs select { width: 110px; }
       <span><i style="background:var(--duck)"></i>duck</span><span><i style="background:var(--trail)"></i>walked</span>
       <span><i style="background:var(--route)"></i>route</span><span><i style="background:var(--drop)"></i>drop</span>
       <span><i style="background:var(--place)"></i>place</span>
+      <span id="legband" hidden title="Seen by the depth sensor at the duck's height (quack-nav's band, 2.5D): the navigation goes round it"><i style="background:var(--band)"></i>in the way<i style="background:var(--overhang);margin-left:4px"></i>under a top</span>
     </div>
     <div class="mapbtns">
       <button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button>
@@ -531,21 +535,31 @@ function buildGrid(f) {
   const off = document.createElement("canvas"); off.width = cols; off.height = rows;
   const c = off.getContext("2d"), im = c.createImageData(cols, rows);
   const rgb = (h) => { const v = parseInt(h.slice(1), 16); return [v >> 16, (v >> 8) & 255, v & 255]; };
-  const free = rgb(css("--free")), wall = rgb(css("--wall"));
+  const free = rgb(css("--free")), wall = rgb(css("--wall")), band = rgb(css("--band")), over = rgb(css("--overhang"));
+  // quack-nav's band (2.5D at the duck's height) on the same cells: 2-11
+  // something in the way from the floor's slices up, 12-21 the same with a
+  // beam seen under it (a table top, a bed's edge). Drawn over the grid,
+  // as the navigation reads it: as wall.
+  let braw = null;
+  if (f.band !== undefined) { const b = atob(f.band); if (b.length === rows * cols) braw = b; }
+  let nband = 0;
   let x0 = cols, x1 = -1, y0 = rows, y1 = -1;
   const walls = [];
   for (let r = 0; r < rows; r++) {
     for (let q = 0; q < cols; q++) {
-      const v = raw.charCodeAt(r * cols + q);
-      if (!v) continue;
+      const v = raw.charCodeAt(r * cols + q), bv = braw ? braw.charCodeAt(r * cols + q) : 0;
+      if (!v && bv < 2) continue;
       // Image row 0 is the top: the map's last row (y grows up).
-      const i = ((rows - 1 - r) * cols + q) * 4, col = v === 2 ? wall : free;
+      const i = ((rows - 1 - r) * cols + q) * 4;
+      let col = v === 2 ? wall : free;
+      if (v !== 2 && bv >= 2) { col = bv >= 12 ? over : band; nband++; }
       im.data[i] = col[0]; im.data[i + 1] = col[1]; im.data[i + 2] = col[2]; im.data[i + 3] = 255;
       if (v === 2) walls.push(q, r);
       if (q < x0) x0 = q; if (q > x1) x1 = q; if (r < y0) y0 = r; if (r > y1) y1 = r;
     }
   }
   c.putImageData(im, 0, 0);
+  $("legband").hidden = !nband;
   S.img = off;
   S.grid = { x_min: f.x_min, y_min: f.y_min, cell: f.cell_m, rows, cols, walls,
              known: x1 < 0 ? null : [f.x_min + x0 * f.cell_m, f.y_min + y0 * f.cell_m, f.x_min + (x1 + 1) * f.cell_m, f.y_min + (y1 + 1) * f.cell_m] };
