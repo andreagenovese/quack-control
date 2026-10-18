@@ -11,6 +11,7 @@ use serde_json::Value;
 
 use crate::config::ServiceConfig;
 
+pub mod house3d;
 pub mod mediad;
 pub mod quack_nav;
 pub mod quacksat;
@@ -57,7 +58,8 @@ pub fn build(services: &[ServiceConfig]) -> anyhow::Result<Vec<Arc<dyn Adapter>>
                 "quack-nav" => Ok(Arc::new(quack_nav::QuackNav::new(s))),
                 "mediad" => Ok(Arc::new(mediad::Mediad::new(s))),
                 "quacksat" => Ok(Arc::new(quacksat::Quacksat::new(s))),
-                other => anyhow::bail!("service `{}`: no adapter for kind `{other}` (quack-nav, mediad, quacksat)", s.name),
+                "house3d" => Ok(Arc::new(house3d::House3d::new(s))),
+                other => anyhow::bail!("service `{}`: no adapter for kind `{other}` (quack-nav, mediad, quacksat, house3d)", s.name),
             }
         })
         .collect()
@@ -69,9 +71,9 @@ mod tests {
 
     #[test]
     fn each_kind_has_its_adapter_and_typos_are_refused() {
-        let services = [ServiceConfig::new("nav", "quack-nav"), ServiceConfig::new("cam", "mediad"), ServiceConfig::new("sat", "quacksat")];
+        let services = [ServiceConfig::new("nav", "quack-nav"), ServiceConfig::new("cam", "mediad"), ServiceConfig::new("sat", "quacksat"), ServiceConfig::new("house", "house3d")];
         let adapters = build(&services).unwrap();
-        assert_eq!(adapters.iter().map(|a| a.kind()).collect::<Vec<_>>(), ["quack-nav", "mediad", "quacksat"]);
+        assert_eq!(adapters.iter().map(|a| a.kind()).collect::<Vec<_>>(), ["quack-nav", "mediad", "quacksat", "house3d"]);
         assert_eq!(adapters[0].name(), "nav");
         let e = build(&[ServiceConfig::new("x", "quack-navd")]).err().unwrap().to_string();
         assert!(e.contains("no adapter"), "{e}");

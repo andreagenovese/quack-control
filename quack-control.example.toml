@@ -29,3 +29,11 @@ media_socket = "/run/mediad/media.sock"
 [[service]]
 name = "quacksat"
 kind = "quacksat"
+
+# The house in 3D with the camera's colours, built off board by quack-nav's
+# scripts/map3d (build.py writes house3d.bin) and copied here. The page's
+# 3D tab draws it; without the file the tab says how to make one.
+[[service]]
+name = "house"
+kind = "house3d"
+house_file = "/var/lib/quack-control/house3d.bin"

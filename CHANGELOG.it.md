@@ -8,6 +8,14 @@ seguono il [Semantic Versioning](https://semver.org/lang/it/) (prima della
 
 ## [Unreleased]
 
+### Aggiunto
+- La casa in 3D (sperimentale): un servizio `house3d` (`house_file`,
+  `/var/lib/quack-control/house3d.bin`) serve il file che
+  `scripts/map3d/build.py` di quack-nav scrive fuori dall'anatra, e una
+  scheda **3D** lo disegna con WebGL — girare, spostare, zoom, isometrica
+  o dall'alto, taglio in altezza, il percorso e l'anatra dal vivo. Nei
+  servizi di default.
+
 ## [0.1.0-rc1] - 2026-10-03
 
 La prima release candidate, provata contro il gemello MuJoCo di quack-nav,

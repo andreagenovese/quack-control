@@ -68,6 +68,15 @@ twin's viewer ([The camera](#the-camera)).
   in the browser. Frames are asked for only while the window is open, the
   map view shown and the page visible — none at all otherwise.
 
+**3D** (experimental; shown when a `house3d` service is configured, as by
+default): the house in 3D with the camera's own colours, built off board
+by quack-nav's `scripts/map3d` from what the duck saw while exploring
+([The house in 3D](#the-house-in-3d)). Drag to turn it, two fingers (or
+the right button, or shift) to move it, pinch or the wheel to zoom;
+isometric, from above (squared like the map tab), a height to cut it at
+so the rooms show, the duck's way through the house, and the duck where
+it is now when the house was built on the map it is on.
+
 **Services**: each managed daemon and whether it answers. quacksat shows
 as not available: it has no control socket yet ([docs/todo.md](docs/todo.md)).
 
@@ -202,6 +211,36 @@ again. Video (WebRTC, mediad's own stream) is for later
 **Port 8090**: mediad's own console listens on `0.0.0.0:8080`
 (`--web-port`, daemon-v0.15.0), so quack-control's default is 8090
 (since 2026-10-01; it was 8080, and the second to start could not listen).
+
+## The house in 3D
+
+The `house3d` adapter (`src/adapters/house3d.rs`) serves one file,
+`/var/lib/quack-control/house3d.bin` (`house_file`): `GET info` its
+header, `GET model` the file, for the page to draw with WebGL (no
+library, nothing from the network). Nothing is built on the duck — its
+board is too small for the depth model and keeps its cores for walking:
+quack-nav's `scripts/map3d/record.py` records beside an exploring duck,
+`build.py` builds the house on a Mac or a PC and writes `house3d.bin`
+(a few hundred kB at 2 cm), and `scripts/map3d/send.sh` (or
+`build.py --send`) copies it to the duck over ssh:
+
+```sh
+scripts/map3d/send.sh microduck@duck out/house3d.bin
+```
+
+By hand, the same:
+
+```sh
+scp house3d.bin microduck@duck:/tmp/ && ssh microduck@duck \
+  sudo install -D -m 644 /tmp/house3d.bin /var/lib/quack-control/house3d.bin
+```
+
+The file is read again when it changes; the page's ↻ loads it again. The
+format: `QH3D`, a u16 version (1), a u16 header length, the header (JSON:
+`points`, `voxel_m`, `map`, `frames`, `built`, `path`) padded to a
+multiple of 4, then 12 bytes a point — i16 x, y, z in mm on the map's
+frame, u8 r, g, b, i8 normal x, y, z. On another map than the one it was
+built on, the house still shows but the duck is not drawn on it.
 
 ## Installing on the duck
 

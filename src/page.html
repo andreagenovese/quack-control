@@ -108,10 +108,19 @@ table.knobs input, table.knobs select { width: 110px; }
 #cam:fullscreen { width: 100%; height: 100%; }
 #camopen svg { width: 20px; height: 20px; vertical-align: middle; }
 #camopen { display: none; }
+/* The 3D house: WebGL points, a 2D canvas over them for the duck and its way. */
+#h3wrap { position: relative; flex: 1; min-width: 0; touch-action: none; overflow: hidden; background: var(--bg); }
+#h3wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#h3over { pointer-events: none; }
+#h3msg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); }
+#h3bar { position: absolute; left: 10px; bottom: 12px; right: 60px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 13px; opacity: .94; }
+#h3bar input[type=range] { width: 140px; }
+#h3info { color: var(--muted); }
 @media (max-width: 760px) {
   main { flex-direction: column; height: auto; }
   section.view.on { flex-direction: column; }
-  #mapwrap { height: 62vh; flex: none; }
+  #mapwrap, #h3wrap { height: 62vh; flex: none; }
   aside { width: auto; border-left: none; border-top: 1px solid var(--line); padding-bottom: 90px; }
   .field { grid-template-columns: 1fr; } .field small { grid-column: 1; }
   table.knobs .doc { display: none; }
@@ -123,6 +132,7 @@ table.knobs input, table.knobs select { width: 110px; }
   <h1>quack-control</h1>
   <nav class="tabs">
     <button data-tab="mapview" class="on">Map</button>
+    <button data-tab="house" id="h3tab" style="display:none">3D</button>
     <button data-tab="services">Services</button>
     <button data-tab="advanced">Advanced</button>
   </nav>
@@ -180,6 +190,24 @@ table.knobs input, table.knobs select { width: 110px; }
       <button id="teach">Teach</button>
     </div>
   </aside>
+</section>
+
+<section class="view" id="house">
+  <div id="h3wrap">
+    <canvas id="h3gl"></canvas><canvas id="h3over"></canvas>
+    <div id="h3msg"></div>
+    <div class="mapbtns">
+      <button id="h3rotl" title="Turn the house left 90°">⟲</button><button id="h3rotr" title="Turn the house right 90°">⟳</button>
+      <button id="h3iso" title="Isometric">◇</button><button id="h3top" title="From above">⊤</button>
+      <button id="h3fit" title="Fit the house">⤢</button><button id="h3follow" title="Follow the duck">◎</button>
+      <button id="h3reload" title="Load the house again">↻</button>
+    </div>
+    <div id="h3bar">
+      <label class="row">cut at <input type="range" id="h3cut" min="0.1" max="1.05" step="0.05" value="0.55"> <span id="h3cutv"></span></label>
+      <label class="row"><input type="checkbox" id="h3way" checked> the duck's way</label>
+      <span id="h3info"></span>
+    </div>
+  </div>
 </section>
 
 <section class="view" id="services">
@@ -299,6 +327,7 @@ document.querySelectorAll("nav.tabs button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("nav.tabs button").forEach((o) => o.classList.toggle("on", o === b));
   document.querySelectorAll("section.view").forEach((v) => v.classList.toggle("on", v.id === b.dataset.tab));
   if (b.dataset.tab === "mapview") resize();
+  if (b.dataset.tab === "house") h3Open();
   camKick();
   if (b.dataset.tab === "services") loadServices();
 });
@@ -786,6 +815,10 @@ async function loadServices() {
   // The camera window shows the first service that has a camera.
   const camSvc = (j.services.find((s) => (s.features || []).includes("camera")) || {}).name || null;
   if (camSvc !== cam.svc) { cam.svc = camSvc; camKick(); }
+  // The 3D tab shows the first service with a house, available or not (it says why).
+  const hs = j.services.find((s) => (s.features || []).includes("house3d"));
+  h3.svc = hs ? hs.name : null; h3.detail = hs ? hs.detail : "";
+  $("h3tab").style.display = hs ? "" : "none";
   for (const s of j.services) {
     // The map view drives the first quack-nav service, whatever its name.
     if (s.kind === "quack-nav" && svc !== s.name && !j.services.some((o) => o.name === svc)) { svc = s.name; connect(); }
@@ -917,6 +950,220 @@ $("knobsapply").onclick = async () => {
   if (j.result.restarting) toast("quack-navd is restarting; the page reconnects by itself", "ok", 10000);
   else toast(j.result.reason || "not restarted", "error", 15000);
 };
+
+// ---- the house in 3D ----
+// A file built off board (quack-nav's scripts/map3d) from what the duck
+// saw: coloured points on the map's frame, drawn here with WebGL as
+// squares the size of a voxel, in an orthographic view (isometric by
+// default) cut at a height so the rooms show. The duck and its way are
+// drawn over them on a plain canvas.
+const h3 = { svc: null, detail: "", gl: null, prog: null, buf: null, n: 0, header: null, bounds: null, loading: false, loaded: false,
+  az: 45 * Math.PI / 180, el: Math.atan(1 / Math.SQRT2), s: 80, t: [0, 0, 0], cut: 0.55, follow: false, dirty: false };
+const H3_VS = `
+attribute vec3 a_p; attribute vec3 a_c; attribute vec3 a_n;
+uniform mat4 u_m; uniform float u_size; uniform float u_cut; uniform vec3 u_light;
+varying vec3 v_c;
+void main() {
+  vec3 p = a_p * 0.001;
+  if (p.z > u_cut) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
+  gl_Position = u_m * vec4(p, 1.0);
+  gl_PointSize = u_size;
+  v_c = a_c * (0.55 + 0.45 * abs(dot(a_n, u_light)));
+}`;
+const H3_FS = `precision mediump float; varying vec3 v_c; void main() { gl_FragColor = vec4(v_c, 1.0); }`;
+
+function h3Msg(text) { const m = $("h3msg"); m.textContent = text || ""; m.style.display = text ? "flex" : "none"; }
+
+function h3Gl() {
+  if (h3.gl) return h3.gl;
+  const gl = $("h3gl").getContext("webgl", { antialias: false });
+  if (!gl) { h3Msg("This browser has no WebGL: the 3D house cannot be drawn here."); return null; }
+  const shader = (type, src) => { const sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, shader(gl.VERTEX_SHADER, H3_VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, H3_FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  h3.gl = gl; h3.prog = prog; h3.buf = gl.createBuffer();
+  $("h3gl").addEventListener("webglcontextlost", (e) => { e.preventDefault(); h3.gl = null; h3.loaded = false; });
+  return gl;
+}
+
+async function h3Open() {
+  h3Resize();
+  if (!h3.svc) { h3Msg("No 3D house service is configured."); return; }
+  if (!h3.loaded && !h3.loading) await h3Load();
+  h3Draw();
+}
+
+async function h3Load() {
+  h3.loading = true; h3Msg("Loading the house…");
+  try {
+    const r = await fetch("/api/" + h3.svc + "/model", { headers: token ? { "X-Token": token } : {}, cache: "no-store" });
+    if (r.status === 401) { askToken(); throw new Error("needs the token"); }
+    if (!r.ok) { let j = {}; try { j = await r.json(); } catch (e) {} throw new Error(j.error || "HTTP " + r.status); }
+    const buf = await r.arrayBuffer(), dv = new DataView(buf);
+    if (buf.byteLength < 8 || String.fromCharCode(...new Uint8Array(buf, 0, 4)) !== "QH3D" || dv.getUint16(4, true) !== 1) throw new Error("not a house3d file this page reads");
+    const hl = dv.getUint16(6, true), header = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hl)));
+    const data = buf.slice(8 + hl), n = header.points, p = new Int16Array(data);
+    if (data.byteLength !== n * 12) throw new Error("the file is damaged");
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { const v = p[i * 6 + k] / 1000; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+    const gl = h3Gl(); if (!gl) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, h3.buf); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    // The first time, from the south-east of the map as the map tab shows it.
+    if (!h3.header) h3.az = -Math.PI / 2 - view.rot + Math.PI / 4;
+    h3.n = n; h3.header = header; h3.bounds = n ? [lo, hi] : null; h3.loaded = true;
+    $("h3info").textContent = n + " points · " + (header.frames || "?") + " frames · built " + (header.built || "?").replace("T", " ");
+    h3Msg(n ? "" : "The house is empty.");
+    h3Fit();
+  } catch (e) {
+    h3Msg("No 3D house to show — " + e.message);
+    $("h3info").textContent = "";
+  } finally { h3.loading = false; }
+}
+
+function h3Size() { const c = $("h3gl"); return [c.clientWidth, c.clientHeight]; }
+function h3Resize() {
+  const dpr = window.devicePixelRatio || 1, [w, h] = h3Size();
+  for (const c of [$("h3gl"), $("h3over")]) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  h3Draw();
+}
+window.addEventListener("resize", () => { if ($("house").classList.contains("on")) h3Resize(); });
+
+// The view's axes on the map's frame: right, up (on screen) and back (towards the eye).
+function h3Axes() {
+  const ca = Math.cos(h3.az), sa = Math.sin(h3.az), ce = Math.cos(h3.el), se = Math.sin(h3.el);
+  const back = [ce * ca, ce * sa, se], right = [-sa, ca, 0];
+  const up = [back[1] * right[2] - back[2] * right[1], back[2] * right[0] - back[0] * right[2], back[0] * right[1] - back[1] * right[0]];
+  return { right, up, back };
+}
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+// Screen pixels (css) from the map's frame, as the shader places them.
+function h3Screen(q) {
+  const [w, h] = h3Size(), a = h3Axes(), d = [q[0] - h3.t[0], q[1] - h3.t[1], q[2] - h3.t[2]];
+  return [w / 2 + dot3(d, a.right) * h3.s, h / 2 - dot3(d, a.up) * h3.s];
+}
+
+function h3Fit() {
+  const b = h3.bounds, [w, h] = h3Size();
+  if (!b || !w || !h) return;
+  const top = Math.min(b[1][2], h3.cut), a = h3Axes();
+  h3.t = [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2, (b[0][2] + top) / 2];
+  let xs = 0, ys = 0;
+  for (const x of [b[0][0], b[1][0]]) for (const y of [b[0][1], b[1][1]]) for (const z of [b[0][2], top]) {
+    const d = [x - h3.t[0], y - h3.t[1], z - h3.t[2]];
+    xs = Math.max(xs, Math.abs(dot3(d, a.right))); ys = Math.max(ys, Math.abs(dot3(d, a.up)));
+  }
+  h3.s = Math.max(5, Math.min(2000, 0.92 * Math.min(w / (2 * Math.max(xs, 0.1)), (h - 60) / (2 * Math.max(ys, 0.1)))));
+  h3Draw();
+}
+
+function h3Draw() {
+  if (h3.dirty) return;
+  h3.dirty = true;
+  requestAnimationFrame(() => { h3.dirty = false; h3Paint(); });
+}
+function h3Paint() {
+  if (!$("house").classList.contains("on")) return;
+  const gl = h3.gl, [w, h] = h3Size(), dpr = window.devicePixelRatio || 1;
+  $("h3cutv").textContent = h3.cut > 1.0 ? "none" : h3.cut.toFixed(2) + " m";
+  const p = S.pose, same = !h3.header || !h3.header.map || !S.status || !S.status.house || S.status.house.map === h3.header.map;
+  if (p && h3.follow && same) { h3.t = [p.x, p.y, h3.t[2]]; }
+  if (gl && h3.loaded && w && h) {
+    const bg = css("--bg"), v = parseInt(bg.slice(1), 16);
+    gl.viewport(0, 0, $("h3gl").width, $("h3gl").height);
+    gl.clearColor((v >> 16) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+    gl.useProgram(h3.prog);
+    const a = h3.axes = h3Axes(), kx = 2 * h3.s / w, ky = 2 * h3.s / h, R = 50, t = h3.t;
+    // Column-major: x and y on screen, depth towards the eye (nearer is smaller).
+    const m = [
+      kx * a.right[0], ky * a.up[0], -a.back[0] / R, 0,
+      kx * a.right[1], ky * a.up[1], -a.back[1] / R, 0,
+      kx * a.right[2], ky * a.up[2], -a.back[2] / R, 0,
+      -kx * dot3(a.right, t), -ky * dot3(a.up, t), dot3(a.back, t) / R, 1];
+    gl.uniformMatrix4fv(gl.getUniformLocation(h3.prog, "u_m"), false, m);
+    const voxel = (h3.header && h3.header.voxel_m) || 0.02;
+    gl.uniform1f(gl.getUniformLocation(h3.prog, "u_size"), Math.min(64, Math.max(1, voxel * h3.s * dpr * 1.5)));
+    gl.uniform1f(gl.getUniformLocation(h3.prog, "u_cut"), h3.cut > 1.0 ? 99 : h3.cut);
+    const L = [0.3, 0.5, 0.8], ln = Math.hypot(...L);
+    gl.uniform3f(gl.getUniformLocation(h3.prog, "u_light"), L[0] / ln, L[1] / ln, L[2] / ln);
+    gl.bindBuffer(gl.ARRAY_BUFFER, h3.buf);
+    const at = (name, size, type, norm, off) => { const i = gl.getAttribLocation(h3.prog, name); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, size, type, norm, 12, off); };
+    at("a_p", 3, gl.SHORT, false, 0); at("a_c", 3, gl.UNSIGNED_BYTE, true, 6); at("a_n", 3, gl.BYTE, true, 9);
+    gl.drawArrays(gl.POINTS, 0, h3.n);
+  }
+  // Over the house: its way through it, and the duck where it is now.
+  const o = $("h3over").getContext("2d");
+  o.setTransform(dpr, 0, 0, dpr, 0, 0); o.clearRect(0, 0, w, h);
+  if (!h3.loaded) return;
+  const way = h3.header.path || [];
+  if ($("h3way").checked && way.length > 1) {
+    o.beginPath(); way.forEach((q, i) => { const [x, y] = h3Screen([q[0], q[1], 0.01]); i ? o.lineTo(x, y) : o.moveTo(x, y); });
+    o.strokeStyle = css("--trail") + "cc"; o.lineWidth = 2; o.lineJoin = "round"; o.stroke();
+  }
+  if (p && same) {
+    const [x, y] = h3Screen([p.x, p.y, 0.12]), [fx, fy] = h3Screen([p.x + 0.15 * Math.cos(p.yaw), p.y + 0.15 * Math.sin(p.yaw), 0.12]);
+    const ang = Math.atan2(fy - y, fx - x), good = p.tracking && !p.seated;
+    o.save(); o.translate(x, y); o.rotate(ang);
+    o.beginPath(); o.moveTo(14, 0); o.lineTo(-8, 8); o.lineTo(-4, 0); o.lineTo(-8, -8); o.closePath();
+    o.fillStyle = good ? css("--duck") : css("--lost"); o.fill(); o.strokeStyle = "#000a"; o.lineWidth = 1; o.stroke(); o.restore();
+  } else if (p && !same) {
+    o.fillStyle = css("--muted"); o.font = "12px system-ui";
+    o.fillText("built on the map “" + h3.header.map + "”; the duck is on another: not drawn", 12, 20);
+  }
+}
+
+// Drag turns the house (one finger or the mouse), two fingers or the
+// right button move it, a pinch or the wheel zooms.
+(() => {
+  const c = $("h3over").parentElement, ptrs = new Map();
+  let last = null;
+  const centre = () => { let x = 0, y = 0; for (const q of ptrs.values()) { x += q[0]; y += q[1]; } return [x / ptrs.size, y / ptrs.size]; };
+  const spread = () => { const v = [...ptrs.values()]; return v.length > 1 ? Math.hypot(v[0][0] - v[1][0], v[0][1] - v[1][1]) : 0; };
+  const pan = (dx, dy) => { const a = h3Axes(); for (let k = 0; k < 3; k++) h3.t[k] += (-dx * a.right[k] + dy * a.up[k]) / h3.s; };
+  c.addEventListener("contextmenu", (e) => e.preventDefault());
+  c.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button, input, label")) return;
+    c.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+    last = { c: centre(), d: spread(), move: e.button === 2 || e.shiftKey };
+  });
+  c.addEventListener("pointermove", (e) => {
+    if (!ptrs.has(e.pointerId) || !last) return;
+    ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+    const now = centre(), d = spread(), dx = now[0] - last.c[0], dy = now[1] - last.c[1];
+    if (ptrs.size > 1 || last.move) {
+      if (Math.hypot(dx, dy) > 0) h3Follow(false);
+      pan(dx, dy);
+      if (ptrs.size > 1 && last.d > 0 && d > 0) h3.s = Math.max(5, Math.min(2000, h3.s * d / last.d));
+    } else {
+      h3.az -= dx * 0.008;
+      h3.el = Math.max(0.05, Math.min(Math.PI / 2 - 0.001, h3.el + dy * 0.008));
+    }
+    last = { c: now, d, move: last.move };
+    h3Draw();
+  });
+  const up = (e) => { ptrs.delete(e.pointerId); last = ptrs.size ? { c: centre(), d: spread(), move: true } : null; };
+  c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
+  c.addEventListener("wheel", (e) => { e.preventDefault(); h3.s = Math.max(5, Math.min(2000, h3.s * Math.exp(-e.deltaY * 0.0015))); h3Draw(); }, { passive: false });
+})();
+function h3Follow(on) { h3.follow = on; $("h3follow").classList.toggle("on", on); }
+$("h3rotl").onclick = () => { h3.az -= Math.PI / 2; h3Draw(); };
+$("h3rotr").onclick = () => { h3.az += Math.PI / 2; h3Draw(); };
+// The nearest of the four isometric corners to where the view is turned.
+// Both square to the map tab's own turn: from above, the house lies as the map does.
+const h3North = () => -Math.PI / 2 - view.rot;
+$("h3iso").onclick = () => { const n = h3North() + Math.PI / 4; h3.az = n + Math.round((h3.az - n) / (Math.PI / 2)) * Math.PI / 2; h3.el = Math.atan(1 / Math.SQRT2); h3Fit(); };
+$("h3top").onclick = () => { h3.az = h3North(); h3.el = Math.PI / 2 - 0.001; h3Fit(); };
+$("h3fit").onclick = () => { h3Follow(false); h3Fit(); };
+$("h3follow").onclick = () => { h3Follow(!h3.follow); h3Draw(); };
+$("h3reload").onclick = async () => { h3.loaded = false; await h3Load(); h3Draw(); };
+$("h3cut").oninput = () => { h3.cut = +$("h3cut").value; h3Draw(); };
+$("h3way").onchange = h3Draw;
+// The duck moves: redraw while the tab is open.
+setInterval(() => { if ($("house").classList.contains("on") && h3.loaded && S.pose) h3Draw(); }, 500);
 
 // ---- start ----
 (async () => {
