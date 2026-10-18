@@ -236,8 +236,15 @@ librerie, niente dalla rete). Sull'anatra non si costruisce niente — la
 scheda è troppo piccola per il modello di profondità e tiene i suoi core
 per camminare: `scripts/map3d/record.py` di quack-nav registra accanto a
 un'anatra che esplora, `build.py` costruisce la casa su un Mac o un PC e
-scrive `house3d.bin` (qualche centinaio di kB a 2 cm), e lo si copia
-sull'anatra:
+scrive `house3d.bin` (qualche centinaio di kB a 2 cm), e
+`scripts/map3d/send.sh` (o `build.py --send`) lo copia sull'anatra via
+ssh:
+
+```sh
+scripts/map3d/send.sh microduck@duck out/house3d.bin
+```
+
+A mano, lo stesso:
 
 ```sh
 scp house3d.bin microduck@duck:/tmp/ && ssh microduck@duck \

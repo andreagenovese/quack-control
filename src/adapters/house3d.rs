@@ -76,7 +76,7 @@ impl House3d {
         let path = self.file.display();
         let meta = std::fs::metadata(&self.file).map_err(|e| match e.kind() {
             std::io::ErrorKind::NotFound => {
-                format!("no 3D house yet: nothing at {path} (build one with quack-nav's scripts/map3d and copy its house3d.bin there)")
+                format!("no 3D house yet: nothing at {path} (build one with quack-nav's scripts/map3d/build.py and put it there with its send.sh)")
             }
             _ => format!("cannot read {path}: {e}"),
         })?;

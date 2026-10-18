@@ -221,7 +221,14 @@ library, nothing from the network). Nothing is built on the duck — its
 board is too small for the depth model and keeps its cores for walking:
 quack-nav's `scripts/map3d/record.py` records beside an exploring duck,
 `build.py` builds the house on a Mac or a PC and writes `house3d.bin`
-(a few hundred kB at 2 cm), and it is copied to the duck:
+(a few hundred kB at 2 cm), and `scripts/map3d/send.sh` (or
+`build.py --send`) copies it to the duck over ssh:
+
+```sh
+scripts/map3d/send.sh microduck@duck out/house3d.bin
+```
+
+By hand, the same:
 
 ```sh
 scp house3d.bin microduck@duck:/tmp/ && ssh microduck@duck \
